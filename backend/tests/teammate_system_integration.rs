@@ -317,3 +317,60 @@ fn remote_mine_skips_teammates() {
         "friend unharmed"
     );
 }
+
+// ============================================================================
+// Task 5: Search filter for teammates when bit 2 set
+// ============================================================================
+
+use royale_arena_backend::websocket::models::SearchTarget;
+
+#[test]
+fn search_filters_out_teammates_when_bit2_set() {
+    let mut state = build_empty_game_state(2); // bit 2 on
+    add_player_at(&mut state, "searcher", 1, "loc");
+    add_player_at(&mut state, "enemy", 2, "loc");
+    add_player_at(&mut state, "friend", 1, "loc");
+
+    let targets = state.collect_search_targets("searcher");
+
+    let target_ids: Vec<String> = targets
+        .iter()
+        .filter_map(|t| match t {
+            SearchTarget::Player(id) => Some(id.clone()),
+            _ => None,
+        })
+        .collect();
+
+    assert!(target_ids.iter().any(|id| id == "enemy"), "enemy should be searchable");
+    assert!(
+        !target_ids.iter().any(|id| id == "friend"),
+        "teammate should be filtered"
+    );
+}
+
+#[test]
+fn search_keeps_teammates_when_bit2_off() {
+    let mut state = build_empty_game_state(0); // mode off
+    add_player_at(&mut state, "searcher", 1, "loc");
+    add_player_at(&mut state, "friend", 1, "loc");
+
+    let targets = state.collect_search_targets("searcher");
+    let has_friend = targets
+        .iter()
+        .any(|t| matches!(t, SearchTarget::Player(id) if id == "friend"));
+    assert!(has_friend, "teammate searchable when mode off");
+}
+
+#[test]
+fn search_keeps_teammates_for_solo_searcher_even_when_bit2_on() {
+    let mut state = build_empty_game_state(2);
+    add_player_at(&mut state, "solo", 0, "loc"); // 散人, team_id=0
+    add_player_at(&mut state, "anyone", 1, "loc");
+
+    let targets = state.collect_search_targets("solo");
+    // solo has no teammates, so anyone should be searchable
+    let has_anyone = targets
+        .iter()
+        .any(|t| matches!(t, SearchTarget::Player(id) if id == "anyone"));
+    assert!(has_anyone);
+}

@@ -367,16 +367,21 @@ impl GameState {
             // 添加其他玩家到搜索目标
             for other_player_id in &place.players {
                 if other_player_id != player_id {
-                    // 只搜索存活的玩家
                     if let Some(other_player) = self.players.get(other_player_id) {
-                        if other_player.is_alive {
-                            targets.push(SearchTarget::Player(other_player_id.clone()));
+                        if !other_player.is_alive {
+                            continue;
                         }
+                        // 队友搜索过滤（位 2）
+                        if self.rule_engine.teammate_behavior.is_search_filtered()
+                            && self.are_teammates(player_id, other_player_id)
+                        {
+                            continue;
+                        }
+                        targets.push(SearchTarget::Player(other_player_id.clone()));
                     }
                 }
             }
-
-            // 添加物品到搜索目标
+            // 添加物品到搜索目标（保持原样）
             for item in &place.items {
                 targets.push(SearchTarget::Item(item.id.clone()));
             }
