@@ -374,3 +374,246 @@ fn search_keeps_teammates_for_solo_searcher_even_when_bit2_on() {
         .any(|t| matches!(t, SearchTarget::Player(id) if id == "anyone"));
     assert!(has_anyone);
 }
+
+// ============================================================================
+// Task 6: transfer_item player action
+// ============================================================================
+
+fn put_item_in_inventory(state: &mut GameState, player_id: &str, item_id: &str, item_name: &str) {
+    let item = Item {
+        id: item_id.to_string(),
+        name: item_name.to_string(),
+        internal_name: None,
+        rarity: None,
+        item_type: ItemType::Upgrader,
+    };
+    state
+        .players
+        .get_mut(player_id)
+        .unwrap()
+        .inventory
+        .push(item);
+}
+
+fn transfer_params(item_id: &str, target_id: &str) -> ActionParams {
+    ActionParams {
+        target_place: None,
+        place_name: None,
+        item_id: Some(item_id.to_string()),
+        slot_type: None,
+        target_player_id: Some(target_id.to_string()),
+        target_player_ids: None,
+        target_item_name: None,
+        message: None,
+        shop_buy_items: None,
+    }
+}
+
+#[test]
+fn transfer_item_happy_path() {
+    let mut state = build_empty_game_state(8); // bit 8 on
+    add_player_at(&mut state, "sender", 1, "loc");
+    add_player_at(&mut state, "receiver", 1, "loc");
+    put_item_in_inventory(&mut state, "sender", "i1", "[橙]自然之力.晓");
+
+    let receiver_strength_before = state.players["receiver"].strength;
+    let sender_count_before = state.players["sender"].inventory.len();
+
+    let results = state
+        .handle_transfer_item_action("sender", "i1", "receiver")
+        .expect("transfer ok");
+
+    assert!(
+        state.players["sender"]
+            .inventory
+            .iter()
+            .all(|i| i.id != "i1"),
+        "item removed from sender"
+    );
+    assert!(
+        state.players["receiver"]
+            .inventory
+            .iter()
+            .any(|i| i.id == "i1"),
+        "item added to receiver"
+    );
+    assert_eq!(
+        state.players["sender"].inventory.len(),
+        sender_count_before - 1
+    );
+    assert_eq!(
+        state.players["receiver"].strength,
+        receiver_strength_before - 5
+    );
+    // 成功时返回两条 SystemNotice，且 broadcast_to_director=true
+    assert_eq!(results.results.len(), 2);
+    for r in &results.results {
+        assert_eq!(r.message_type, MessageType::SystemNotice);
+        assert!(r.broadcast_to_director);
+    }
+}
+
+#[test]
+fn transfer_item_rejected_when_bit8_off() {
+    let mut state = build_empty_game_state(1); // bit 1 only
+    add_player_at(&mut state, "sender", 1, "loc");
+    add_player_at(&mut state, "receiver", 1, "loc");
+    put_item_in_inventory(&mut state, "sender", "i1", "X");
+
+    let results = state
+        .handle_transfer_item_action("sender", "i1", "receiver")
+        .expect("ok");
+    assert_eq!(results.results[0].message_type, MessageType::Info);
+    assert!(
+        state.players["sender"]
+            .inventory
+            .iter()
+            .any(|i| i.id == "i1"),
+        "item stays"
+    );
+}
+
+#[test]
+fn transfer_item_rejected_when_target_low_strength() {
+    let mut state = build_empty_game_state(8);
+    add_player_at(&mut state, "sender", 1, "loc");
+    add_player_at(&mut state, "receiver", 1, "loc");
+    state.players.get_mut("receiver").unwrap().strength = 3;
+    put_item_in_inventory(&mut state, "sender", "i1", "X");
+
+    let results = state
+        .handle_transfer_item_action("sender", "i1", "receiver")
+        .expect("ok");
+    assert_eq!(results.results[0].message_type, MessageType::Info);
+    assert!(state.players["sender"].inventory.iter().any(|i| i.id == "i1"));
+    assert_eq!(state.players["receiver"].strength, 3);
+}
+
+#[test]
+fn transfer_item_rejected_when_target_dead() {
+    let mut state = build_empty_game_state(8);
+    add_player_at(&mut state, "sender", 1, "loc");
+    add_player_at(&mut state, "receiver", 1, "loc");
+    state.players.get_mut("receiver").unwrap().is_alive = false;
+    put_item_in_inventory(&mut state, "sender", "i1", "X");
+
+    let results = state
+        .handle_transfer_item_action("sender", "i1", "receiver")
+        .expect("ok");
+    assert_eq!(results.results[0].message_type, MessageType::Info);
+    assert!(state.players["sender"].inventory.iter().any(|i| i.id == "i1"));
+}
+
+#[test]
+fn transfer_item_rejected_when_target_backpack_full() {
+    let mut rules = teammate_test_rules(8);
+    rules["player"]["max_backpack_items"] = json!(1);
+    let mut state = GameState::new("g1".to_string(), rules);
+    // manually place players
+    let mut s = Player::new(
+        "sender".to_string(),
+        "ns".to_string(),
+        "p".to_string(),
+        1,
+        &state.rule_engine,
+    );
+    s.location = "loc".to_string();
+    state.players.insert("sender".to_string(), s);
+    let mut r = Player::new(
+        "receiver".to_string(),
+        "nr".to_string(),
+        "p".to_string(),
+        1,
+        &state.rule_engine,
+    );
+    r.location = "loc".to_string();
+    r.inventory.push(Item {
+        id: "blocker".to_string(),
+        name: "B".to_string(),
+        internal_name: None,
+        rarity: None,
+        item_type: ItemType::Upgrader,
+    });
+    state.players.insert("receiver".to_string(), r);
+    state
+        .places
+        .insert("loc".to_string(), Place::new("loc".to_string()));
+    put_item_in_inventory(&mut state, "sender", "i1", "X");
+
+    let results = state
+        .handle_transfer_item_action("sender", "i1", "receiver")
+        .expect("ok");
+    assert_eq!(results.results[0].message_type, MessageType::Info);
+    assert!(state.players["sender"].inventory.iter().any(|i| i.id == "i1"));
+}
+
+#[test]
+fn transfer_item_rejected_for_solo_player() {
+    let mut state = build_empty_game_state(8);
+    add_player_at(&mut state, "solo", 0, "loc"); // 散人
+    add_player_at(&mut state, "anyone", 1, "loc");
+    put_item_in_inventory(&mut state, "solo", "i1", "X");
+
+    let results = state
+        .handle_transfer_item_action("solo", "i1", "anyone")
+        .expect("ok");
+    assert_eq!(results.results[0].message_type, MessageType::Info);
+    assert!(state.players["solo"].inventory.iter().any(|i| i.id == "i1"));
+}
+
+#[test]
+fn transfer_item_rejected_when_item_not_in_inventory() {
+    let mut state = build_empty_game_state(8);
+    add_player_at(&mut state, "sender", 1, "loc");
+    add_player_at(&mut state, "receiver", 1, "loc");
+    // No item put in inventory
+
+    let results = state
+        .handle_transfer_item_action("sender", "ghost_item", "receiver")
+        .expect("ok");
+    assert_eq!(results.results[0].message_type, MessageType::Info);
+}
+
+#[test]
+fn transfer_item_rejected_when_not_teammates() {
+    let mut state = build_empty_game_state(8);
+    add_player_at(&mut state, "sender", 1, "loc");
+    add_player_at(&mut state, "other", 2, "loc"); // 不同队伍
+    put_item_in_inventory(&mut state, "sender", "i1", "X");
+
+    let results = state
+        .handle_transfer_item_action("sender", "i1", "other")
+        .expect("ok");
+    assert_eq!(results.results[0].message_type, MessageType::Info);
+    assert!(state.players["sender"].inventory.iter().any(|i| i.id == "i1"));
+}
+
+#[test]
+fn transfer_item_via_scheduler_dispatch() {
+    let mut state = build_empty_game_state(8);
+    add_player_at(&mut state, "sender", 1, "loc");
+    add_player_at(&mut state, "receiver", 1, "loc");
+    put_item_in_inventory(&mut state, "sender", "i1", "X");
+
+    let params = transfer_params("i1", "receiver");
+    let results = royale_arena_backend::websocket::actions::player_action_scheduler::PlayerActionScheduler::dispatch(
+        &mut state,
+        "sender",
+        "transfer_item",
+        params,
+    )
+    .expect("dispatch ok");
+
+    assert!(
+        state.players["receiver"]
+            .inventory
+            .iter()
+            .any(|i| i.id == "i1"),
+        "item transferred via scheduler"
+    );
+    // 成功路径两条 SystemNotice
+    assert_eq!(results.results.len(), 2);
+    for r in &results.results {
+        assert_eq!(r.message_type, MessageType::SystemNotice);
+    }
+}

@@ -302,6 +302,30 @@ impl PlayerActionScheduler {
                 game_state.end_rest_mode_for_action(player_id);
                 return game_state.handle_deliver_action(player_id, target_player_id, message);
             }
+            "transfer_item" => {
+                validate_or_return!(
+                    game_state,
+                    player_id,
+                    vec![
+                        ValidationType::Alive,
+                        ValidationType::NotBound,
+                    ]
+                );
+                let item_id = action_params
+                    .item_id
+                    .clone()
+                    .ok_or("Missing item_id parameter".to_string())?;
+                let target_player_id = action_params
+                    .target_player_id
+                    .clone()
+                    .ok_or("Missing target_player_id parameter".to_string())?;
+                game_state.end_rest_mode_for_action(player_id);
+                return game_state.handle_transfer_item_action(
+                    player_id,
+                    &item_id,
+                    &target_player_id,
+                );
+            }
             "shop_buy" => {
                 validate_or_return!(
                     game_state,

@@ -836,15 +836,6 @@ impl GameState {
             "remaining_coins": player.coins,
         });
 
-        let shop_sync_result = ActionResult::new_info_message(
-            serde_json::json!({
-                "shop_updated": true,
-            }),
-            self.players.keys().cloned().collect(),
-            "商店库存已更新".to_string(),
-            true,
-        );
-
         let detail_result = ActionResult::new_system_message(
             detail_data,
             vec![player_id.to_string()],
@@ -858,7 +849,119 @@ impl GameState {
         );
 
         Ok(ActionResults {
-            results: vec![shop_sync_result, detail_result],
+            results: vec![detail_result],
+        })
+    }
+
+    /// 处理道具转移行动（队友模式位 8）
+    /// 发起方免费，接收方体力 -5
+    pub fn handle_transfer_item_action(
+        &mut self,
+        sender_id: &str,
+        item_id: &str,
+        target_player_id: &str,
+    ) -> Result<ActionResults, String> {
+        let info_message = |message: String, sender: &str| -> ActionResults {
+            ActionResult::new_info_message(
+                serde_json::json!({}),
+                vec![sender.to_string()],
+                message,
+                false,
+            )
+            .as_results()
+        };
+
+        // 1. 位 8 必须开
+        if !self.rule_engine.teammate_behavior.is_transfer_enabled() {
+            return Ok(info_message("队友物品转移未开启".to_string(), sender_id));
+        }
+        // 2. 必须是同队
+        if !self.are_teammates(sender_id, target_player_id) {
+            return Ok(info_message("目标不是你的队友".to_string(), sender_id));
+        }
+        // 3. 接收方必须存活
+        let target_alive = self
+            .players
+            .get(target_player_id)
+            .map(|p| p.is_alive)
+            .unwrap_or(false);
+        if !target_alive {
+            return Ok(info_message("对方已阵亡，无法接收".to_string(), sender_id));
+        }
+        // 4. 物品必须在背包
+        let item = {
+            let sender = self.players.get(sender_id).ok_or("Sender not found")?;
+            sender.inventory.iter().find(|i| i.id == item_id).cloned()
+        };
+        let item = match item {
+            Some(it) => it,
+            None => return Ok(info_message("物品不在背包中".to_string(), sender_id)),
+        };
+        // 5. 接收方体力 ≥ 5
+        let target_strength = self
+            .players
+            .get(target_player_id)
+            .map(|p| p.strength)
+            .unwrap_or(0);
+        if target_strength < 5 {
+            return Ok(info_message("对方体力不足，无法接收".to_string(), sender_id));
+        }
+        // 6. 接收方背包未满
+        let max = self.rule_engine.player_config.max_backpack_items as usize;
+        let target_count = self
+            .players
+            .get(target_player_id)
+            .map(|p| p.get_total_item_count())
+            .unwrap_or(0);
+        if target_count >= max {
+            return Ok(info_message("对方背包已满，无法接收".to_string(), sender_id));
+        }
+
+        // 应用：sender 移除、target 加入并扣体力
+        let sender_name = self.players.get(sender_id).unwrap().name.clone();
+        let target_name = self.players.get(target_player_id).unwrap().name.clone();
+        let item_name = item.name.clone();
+
+        self.players
+            .get_mut(sender_id)
+            .unwrap()
+            .inventory
+            .retain(|i| i.id != item_id);
+        let target = self.players.get_mut(target_player_id).unwrap();
+        target.inventory.push(item);
+        target.strength -= 5;
+        let target_strength_after = target.strength;
+        let target_life = target.life;
+
+        let sender_msg = format!("你将 {} 转移给了 {}", item_name, target_name);
+        let target_msg = format!("队友 {} 将 {} 转移给你，体力 -5", sender_name, item_name);
+
+        let sender_data = serde_json::json!({
+            "item_name": item_name,
+            "target": target_name,
+        });
+        let target_data = serde_json::json!({
+            "item_name": item_name,
+            "sender": sender_name,
+            "strength": target_strength_after,
+            "life": target_life,
+        });
+
+        Ok(ActionResults {
+            results: vec![
+                ActionResult::new_system_message(
+                    sender_data,
+                    vec![sender_id.to_string()],
+                    sender_msg,
+                    true,
+                ),
+                ActionResult::new_system_message(
+                    target_data,
+                    vec![target_player_id.to_string()],
+                    target_msg,
+                    true,
+                ),
+            ],
         })
     }
 }
