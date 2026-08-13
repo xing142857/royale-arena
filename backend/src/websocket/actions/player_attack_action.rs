@@ -129,6 +129,12 @@ impl GameState {
                         if other_id.as_str() == player_id || other_id == &target_player_id {
                             return None;
                         }
+                        // 队友溅射免疫（位 1）
+                        if self.rule_engine.teammate_behavior.is_damage_immune()
+                            && self.are_teammates(player_id, other_id)
+                        {
+                            return None;
+                        }
                         let is_alive = self
                             .players
                             .get(other_id)

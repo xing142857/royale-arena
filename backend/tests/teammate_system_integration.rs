@@ -196,3 +196,124 @@ fn attack_teammate_with_mode_off_works_normally() {
         "damage should apply when mode is off"
     );
 }
+
+// ============================================================================
+// Task 4: AOE splash + remote mine teammate immunity
+// ============================================================================
+
+use royale_arena_backend::game::game_rule_engine::{
+    Item, ItemType, UtilityProperties, WeaponProperties,
+};
+use royale_arena_backend::websocket::actions::player_action_scheduler::ActionParams;
+
+fn equip_legendary_weapon(state: &mut GameState, player_id: &str) {
+    // 橙武带 aoe_damage=40, bleed_damage=10
+    let weapon = Item {
+        id: "w1".to_string(),
+        name: "[橙]自然之力.晓".to_string(),
+        internal_name: None,
+        rarity: None,
+        item_type: ItemType::Weapon(WeaponProperties {
+            damage: 50,
+            uses: Some(5),
+            votes: 0,
+            aoe_damage: Some(40),
+            bleed_damage: Some(10),
+        }),
+    };
+    state
+        .players
+        .get_mut(player_id)
+        .unwrap()
+        .equipped_weapon = Some(weapon);
+}
+
+#[test]
+fn attack_splash_skips_teammates() {
+    let mut state = build_empty_game_state(1); // bit 1 on
+    add_player_at(&mut state, "attacker", 1, "loc");
+    add_player_at(&mut state, "main_target", 2, "loc"); // 不同队，主目标
+    add_player_at(&mut state, "teammate", 1, "loc"); // 同队，应被溅射过滤
+    equip_legendary_weapon(&mut state, "attacker");
+    set_last_search_to(&mut state, "attacker", "main_target");
+
+    let main_life_before = state.players["main_target"].life;
+    let team_life_before = state.players["teammate"].life;
+
+    let results = state.handle_attack_action("attacker").expect("attack ok");
+
+    // main_target 应受伤（武器 + 溅射）
+    assert!(state.players["main_target"].life < main_life_before);
+    // teammate 生命值不变
+    assert_eq!(state.players["teammate"].life, team_life_before);
+
+    // 攻击者收到的消息里 aoe_hits 不含 teammate
+    let attacker_msg = results
+        .results
+        .iter()
+        .find(|r| r.broadcast_players.iter().any(|p| p == "attacker"))
+        .map(|r| r.log_message.as_str())
+        .unwrap_or("");
+    assert!(
+        !attacker_msg.contains("name_teammate"),
+        "teammate name should not appear in attacker log"
+    );
+}
+
+#[test]
+fn remote_mine_skips_teammates() {
+    let mut state = build_empty_game_state(1);
+    add_player_at(&mut state, "miner", 1, "loc");
+    add_player_at(&mut state, "enemy", 2, "loc");
+    add_player_at(&mut state, "friend", 1, "loc");
+
+    // 给 miner 装备遥控地雷
+    let mine = Item {
+        id: "m1".to_string(),
+        name: "[炸]遥控地雷".to_string(),
+        internal_name: None,
+        rarity: None,
+        item_type: ItemType::Utility(UtilityProperties {
+            category: "utility_trap".to_string(),
+            damage: Some(30),
+            uses: Some(1),
+            votes: Some(0),
+            targets: None,
+            uses_night: None,
+        }),
+    };
+    state
+        .players
+        .get_mut("miner")
+        .unwrap()
+        .inventory
+        .push(mine);
+
+    let enemy_before = state.players["enemy"].life;
+    let friend_before = state.players["friend"].life;
+
+    let params = ActionParams {
+        target_place: None,
+        place_name: None,
+        item_id: Some("m1".to_string()),
+        slot_type: None,
+        target_player_id: None,
+        target_player_ids: None,
+        target_item_name: None,
+        message: None,
+        shop_buy_items: None,
+    };
+    // 直接走 handle_use_action（绕过 scheduler 校验，简化测试）
+    state
+        .handle_use_action("miner", "m1", &params)
+        .expect("use ok");
+
+    assert!(
+        state.players["enemy"].life < enemy_before,
+        "enemy takes mine damage"
+    );
+    assert_eq!(
+        state.players["friend"].life, friend_before,
+        "friend unharmed"
+    );
+}

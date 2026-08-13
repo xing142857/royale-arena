@@ -684,11 +684,25 @@ impl GameState {
             return Err("该遥控地雷未配置伤害，无法使用".to_string());
         }
 
-        let occupant_ids = self
+        let occupant_ids: Vec<String> = self
             .places
             .get(player_location)
             .map(|place| place.players.clone())
-            .unwrap_or_default();
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|target_id| {
+                if target_id == player_id {
+                    return false;
+                }
+                // 队友免疫（位 1）
+                if self.rule_engine.teammate_behavior.is_damage_immune()
+                    && self.are_teammates(player_id, target_id)
+                {
+                    return false;
+                }
+                true
+            })
+            .collect();
 
         let mut results: Vec<ActionResult> = Vec::new();
         let mut impact_records: Vec<(String, String, i32, i32, bool)> = Vec::new();
