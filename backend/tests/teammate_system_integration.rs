@@ -4,7 +4,9 @@ use royale_arena_backend::game::models::MessageType;
 use royale_arena_backend::websocket::actions::director_action_scheduler::{
     DirectorActionParams, DirectorActionScheduler,
 };
-use royale_arena_backend::websocket::models::GameState;
+use royale_arena_backend::websocket::models::{
+    GameState, Place, Player, SearchResult, SearchResultType,
+};
 use serde_json::{Value, json};
 
 fn teammate_test_rules(mode: i32) -> Value {
@@ -89,4 +91,108 @@ fn set_teammate_behavior_rejects_out_of_range() {
         let result = DirectorActionScheduler::dispatch(&mut state, "set_teammate_behavior", params);
         assert!(result.is_err(), "mode={} should be rejected", bad);
     }
+}
+
+// ============================================================================
+// Task 3: Attack main-target immunity helpers
+// ============================================================================
+
+fn add_player_at(state: &mut GameState, id: &str, team: u32, loc: &str) {
+    let mut p = Player::new(
+        id.to_string(),
+        format!("name_{}", id),
+        "pw".to_string(),
+        team,
+        &state.rule_engine,
+    );
+    p.location = loc.to_string();
+    p.last_search_result = Some(SearchResult {
+        target_type: SearchResultType::Player,
+        target_id: "target".to_string(),
+        target_name: "target".to_string(),
+        is_visible: true,
+    });
+    state
+        .places
+        .entry(loc.to_string())
+        .or_insert_with(|| Place::new(loc.to_string()));
+    state.players.insert(id.to_string(), p);
+    state
+        .places
+        .get_mut(loc)
+        .unwrap()
+        .players
+        .push(id.to_string());
+}
+
+fn set_last_search_to(state: &mut GameState, searcher: &str, target: &str) {
+    let target_name = state
+        .players
+        .get(target)
+        .map(|p| p.name.clone())
+        .unwrap_or_default();
+    let player = state.players.get_mut(searcher).unwrap();
+    player.last_search_result = Some(SearchResult {
+        target_type: SearchResultType::Player,
+        target_id: target.to_string(),
+        target_name,
+        is_visible: true,
+    });
+}
+
+#[test]
+fn attack_teammate_with_damage_immune_returns_info() {
+    let mut state = build_empty_game_state(1); // bit 1 on
+    add_player_at(&mut state, "attacker", 1, "loc");
+    add_player_at(&mut state, "target", 1, "loc");
+    set_last_search_to(&mut state, "attacker", "target");
+
+    let attacker_strength_before = state.players["attacker"].strength;
+    let target_life_before = state.players["target"].life;
+
+    let results = state.handle_attack_action("attacker").expect("attack ok");
+
+    // Should return Info message
+    assert_eq!(results.results.len(), 1);
+    assert_eq!(results.results[0].message_type, MessageType::Info);
+    assert!(!results.results[0].broadcast_to_director);
+
+    // Nothing consumed, no damage applied
+    assert_eq!(state.players["attacker"].strength, attacker_strength_before);
+    assert_eq!(state.players["target"].life, target_life_before);
+    // Search result should NOT be cleared (attack didn't happen)
+    assert!(state.players["attacker"].last_search_result.is_some());
+}
+
+#[test]
+fn attack_solo_player_works_even_with_mode_on() {
+    let mut state = build_empty_game_state(1); // bit 1 on
+    add_player_at(&mut state, "attacker", 1, "loc");
+    add_player_at(&mut state, "target", 0, "loc"); // solo, team_id=0
+    set_last_search_to(&mut state, "attacker", "target");
+
+    let results = state.handle_attack_action("attacker").expect("attack ok");
+    // Solo target should be damaged normally — not Info
+    let has_system = results
+        .results
+        .iter()
+        .any(|r| r.message_type == MessageType::SystemNotice);
+    assert!(has_system, "attack on solo should produce SystemNotice, not Info");
+    assert!(state.players["target"].life < 100);
+}
+
+#[test]
+fn attack_teammate_with_mode_off_works_normally() {
+    let mut state = build_empty_game_state(0); // mode off
+    add_player_at(&mut state, "attacker", 1, "loc");
+    add_player_at(&mut state, "target", 1, "loc");
+    set_last_search_to(&mut state, "attacker", "target");
+
+    state
+        .handle_attack_action("attacker")
+        .expect("attack ok");
+    assert!(
+        state.players["target"].life < 100,
+        "damage should apply when mode is off"
+    );
 }
