@@ -45,6 +45,9 @@ pub struct DirectorActionParams {
     pub shop_listing_id: Option<String>,
     pub price: Option<i32>,
     pub quantity: Option<i32>,
+
+    /// 队友行为位掩码（0..=15）
+    pub teammate_behavior: Option<i32>,
 }
 
 impl DirectorActionParams {
@@ -231,6 +234,19 @@ impl DirectorActionScheduler {
                     .shop_listing_id
                     .ok_or_else(|| "Missing shop_listing_id parameter".to_string())?;
                 game_state.handle_shop_delist_item(&listing_id)
+            }
+
+            "set_teammate_behavior" => {
+                let mode = action_params
+                    .teammate_behavior
+                    .ok_or_else(|| "Missing teammate_behavior parameter".to_string())?;
+                if !(0..=15).contains(&mode) {
+                    return Err(format!(
+                        "teammate_behavior must be in 0..=15, got {}",
+                        mode
+                    ));
+                }
+                game_state.handle_set_teammate_behavior(mode)
             }
 
             _ => Err(format!("Unknown director action type: {}", action_type)),

@@ -825,4 +825,28 @@ impl GameState {
 
         Ok(action_result.as_results())
     }
+
+    /// 导演更新队友行为配置
+    pub fn handle_set_teammate_behavior(&mut self, mode: i32) -> Result<ActionResults, String> {
+        // 1. 写回 rule_engine（让本轮后续 action 立刻生效）
+        self.rule_engine.teammate_behavior.mode = mode;
+
+        // 2. 同步到 rules_config JSON（让前端 state_update 看到新值、让存档保留）
+        if let Some(obj) = self.rules_config.as_object_mut() {
+            obj.insert(
+                "teammate_behavior".to_string(),
+                serde_json::json!(mode),
+            );
+        }
+
+        // 3. 全员广播 SystemNotice
+        let all_player_ids: Vec<String> = self.players.keys().cloned().collect();
+        Ok(ActionResult::new_system_message(
+            serde_json::json!({ "teammate_behavior": mode }),
+            all_player_ids,
+            format!("导演已更新队友行为规则（位掩码={}）", mode),
+            true,
+        )
+        .as_results())
+    }
 }
