@@ -60,6 +60,7 @@ export interface Player {
 export interface ActorPlayer {
   id: string;
   name: string;
+  team_id?: number;
 }
 
 // 导演视角的地点接口

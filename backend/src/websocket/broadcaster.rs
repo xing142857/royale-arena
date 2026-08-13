@@ -131,6 +131,7 @@ impl Player {
         json!({
             "id": self.id,
             "name": self.name,
+            "team_id": self.team_id,
         })
     }
 }

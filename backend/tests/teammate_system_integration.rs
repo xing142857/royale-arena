@@ -617,3 +617,20 @@ fn transfer_item_via_scheduler_dispatch() {
         assert_eq!(r.message_type, MessageType::SystemNotice);
     }
 }
+
+// ============================================================================
+// Task 7: Expose team_id in player list JSON (actor view)
+// ============================================================================
+
+#[test]
+fn player_list_json_includes_team_id() {
+    let mut state = build_empty_game_state(0);
+    add_player_at(&mut state, "p1", 5, "loc");
+    let player = state.players.get("p1").unwrap();
+    let json = player.to_player_client_json_for_other_players();
+    assert!(
+        json.get("team_id").is_some(),
+        "team_id must be present in player list JSON"
+    );
+    assert_eq!(json["team_id"].as_i64(), Some(5));
+}
