@@ -99,6 +99,11 @@
           />
         </div>
 
+        <!-- 队友模式 -->
+        <div class="full-width-section">
+          <TeammateModeCard />
+        </div>
+
         <!-- 商店管理 -->
         <div class="full-width-section">
           <ShopManagement />
@@ -126,6 +131,7 @@ import PlaceStatusCard from '../components/PlaceStatusCard.vue'
 import PlayerStatusCard from '../components/PlayerStatusCard.vue'
 import BroadcastMessage from '../components/BroadcastMessage.vue'
 import ShopManagement from '../components/ShopManagement.vue'
+import TeammateModeCard from '../components/TeammateModeCard.vue'
 import { useManualSaveGame } from '../composables/useManualSaveGame'
 import { areStringArraysEqual } from '@/utils/commonUtils'
 

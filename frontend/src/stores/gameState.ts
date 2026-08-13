@@ -313,6 +313,11 @@ export const useGameStateStore = defineStore('gameState', () => {
     sendDirectorAction('night_settlement', { rest_enabled: restEnabled })
   }
 
+  // 设置队友行为位掩码（0..=15）
+  const setTeammateBehavior = (mode: number) => {
+    sendDirectorAction('set_teammate_behavior', { teammate_behavior: mode })
+  }
+
   // 商店上架物品
   const shopListItem = (itemName: string, price: number, quantity: number = 1) => {
     sendDirectorAction('shop_list_item', { item_name: itemName, price, quantity })
@@ -438,6 +443,7 @@ export const useGameStateStore = defineStore('gameState', () => {
     shopListItem,
     shopDelistItem,
     shopBuy,
+    setTeammateBehavior,
     clearError
   }
 })
