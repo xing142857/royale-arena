@@ -480,6 +480,22 @@ impl GameState {
             shop: Vec::new(),
         }
     }
+
+    /// 判断两个玩家是否为同队队友
+    /// 规则：team_id 必须相等且 > 0；自己不算自己的队友；任一玩家不存在返回 false
+    pub fn are_teammates(&self, a_id: &str, b_id: &str) -> bool {
+        if a_id == b_id {
+            return false;
+        }
+        let (a, b) = match (self.players.get(a_id), self.players.get(b_id)) {
+            (Some(a), Some(b)) => (a, b),
+            _ => return false,
+        };
+        match (a.team_id, b.team_id) {
+            (Some(ta), Some(tb)) => ta > 0 && ta == tb,
+            _ => false,
+        }
+    }
 }
 
 // 为GameState实现自定义反序列化
@@ -527,5 +543,72 @@ impl<'de> Deserialize<'de> for GameState {
             save_time: helper.save_time,
             shop: helper.shop,
         })
+    }
+}
+
+#[cfg(test)]
+mod are_teammates_tests {
+    use super::*;
+    use crate::game::game_rule_engine::GameRuleEngine;
+
+    fn build_state_with_players(pairs: &[(&str, u32)]) -> GameState {
+        let rules_json = r#"{
+            "map": {"places": ["loc"], "safe_places": []},
+            "player": {"max_life": 100, "max_strength": 100, "daily_life_recovery": 0, "daily_strength_recovery": 40, "search_cooldown": 30, "max_backpack_items": 6, "unarmed_damage": 5},
+            "action_costs": {"move": 5, "search": 5, "pick": 0, "attack": 0, "equip": 0, "use": 0, "throw": 0, "deliver": 10},
+            "rest_mode": {"life_recovery": 25, "strength_recovery": 1000, "max_moves": 1},
+            "death_item_disposition": "killer_takes_loot",
+            "teammate_behavior": 0,
+            "items_config": {"rarity_levels": [], "items": {}, "upgrade_recipes": {}}
+        }"#;
+        let rules_value: JsonValue =
+            serde_json::from_str(rules_json).expect("rules JSON must parse");
+        let engine = GameRuleEngine::from_json(rules_json).unwrap();
+        let mut state = GameState::new("game1".to_string(), rules_value);
+        state.rule_engine = engine;
+        for (id, team) in pairs {
+            let mut p = Player::new(
+                id.to_string(),
+                format!("name_{}", id),
+                "pw".to_string(),
+                *team,
+                &state.rule_engine,
+            );
+            p.location = "loc".to_string();
+            state.players.insert(id.to_string(), p);
+        }
+        state
+    }
+
+    #[test]
+    fn same_positive_team_id_are_teammates() {
+        let s = build_state_with_players(&[("a", 1), ("b", 1)]);
+        assert!(s.are_teammates("a", "b"));
+        assert!(s.are_teammates("b", "a")); // symmetric
+    }
+
+    #[test]
+    fn different_team_ids_not_teammates() {
+        let s = build_state_with_players(&[("a", 1), ("b", 2)]);
+        assert!(!s.are_teammates("a", "b"));
+    }
+
+    #[test]
+    fn zero_team_id_never_teammate_even_if_equal() {
+        let s = build_state_with_players(&[("a", 0), ("b", 0)]);
+        assert!(!s.are_teammates("a", "b"));
+    }
+
+    #[test]
+    fn self_is_not_own_teammate() {
+        let s = build_state_with_players(&[("a", 1)]);
+        assert!(!s.are_teammates("a", "a"));
+    }
+
+    #[test]
+    fn unknown_player_id_not_teammate() {
+        let s = build_state_with_players(&[("a", 1)]);
+        assert!(!s.are_teammates("a", "ghost"));
+        assert!(!s.are_teammates("ghost", "a"));
     }
 }

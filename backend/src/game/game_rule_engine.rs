@@ -107,8 +107,7 @@ pub struct GameRuleEngine {
     pub action_costs: ActionCosts,
     pub rest_mode: RestModeConfig,
     pub items_config: ItemsConfig,
-    #[allow(dead_code)]
-    pub teammate_behavior: TeammateBehavior, // TODO: 实现队友行为规则
+    pub teammate_behavior: TeammateBehavior,
     pub death_item_disposition: DeathItemDisposition,
 }
 
@@ -158,7 +157,23 @@ pub struct RestModeConfig {
 /// 队友行为配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TeammateBehavior {
-    pub mode: i32, // 0: 无队友伤害免疫, 1: 有队友伤害免疫
+    pub mode: i32,
+}
+
+impl TeammateBehavior {
+    pub const BIT_DAMAGE_IMMUNE: i32 = 1;
+    pub const BIT_SEARCH_FILTER: i32 = 2;
+    pub const BIT_TRANSFER: i32 = 8;
+
+    pub fn is_damage_immune(&self) -> bool {
+        self.mode & Self::BIT_DAMAGE_IMMUNE != 0
+    }
+    pub fn is_search_filtered(&self) -> bool {
+        self.mode & Self::BIT_SEARCH_FILTER != 0
+    }
+    pub fn is_transfer_enabled(&self) -> bool {
+        self.mode & Self::BIT_TRANSFER != 0
+    }
 }
 
 /// 死亡物品处置规则
@@ -517,5 +532,51 @@ impl GameRuleEngine {
             .armors
             .iter()
             .find(|config| config.internal_name == internal_name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn teammate_behavior_bit_helpers() {
+        use crate::game::game_rule_engine::TeammateBehavior;
+
+        let b = TeammateBehavior { mode: 0 };
+        assert!(!b.is_damage_immune());
+        assert!(!b.is_search_filtered());
+        assert!(!b.is_transfer_enabled());
+
+        let b = TeammateBehavior { mode: 1 };
+        assert!(b.is_damage_immune());
+        assert!(!b.is_search_filtered());
+        assert!(!b.is_transfer_enabled());
+
+        let b = TeammateBehavior { mode: 2 };
+        assert!(!b.is_damage_immune());
+        assert!(b.is_search_filtered());
+        assert!(!b.is_transfer_enabled());
+
+        let b = TeammateBehavior { mode: 8 };
+        assert!(!b.is_damage_immune());
+        assert!(!b.is_search_filtered());
+        assert!(b.is_transfer_enabled());
+
+        let b = TeammateBehavior { mode: 11 }; // 1 + 2 + 8
+        assert!(b.is_damage_immune());
+        assert!(b.is_search_filtered());
+        assert!(b.is_transfer_enabled());
+
+        let b = TeammateBehavior { mode: 9 }; // 1 + 8
+        assert!(b.is_damage_immune());
+        assert!(!b.is_search_filtered());
+        assert!(b.is_transfer_enabled());
+
+        // Bit 4 (value 4) is NOT exposed — helper methods ignore it
+        let b = TeammateBehavior { mode: 4 };
+        assert!(!b.is_damage_immune());
+        assert!(!b.is_search_filtered());
+        assert!(!b.is_transfer_enabled());
     }
 }
