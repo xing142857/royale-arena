@@ -89,3 +89,9 @@ temp/
 python_directors/__pycache__/
 python_directors/*.pyc
 python_directors/.pytest_cache/
+
+# 本地部署/会话导出产物（仅存在于本机，不上传）
+/*.txt
+/director_rules_config.json
+/export_conversation.js
+.superpowers/
