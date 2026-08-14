@@ -445,12 +445,22 @@ fn transfer_item_happy_path() {
         state.players["receiver"].strength,
         receiver_strength_before - 5
     );
-    // 成功时返回两条 SystemNotice，且 broadcast_to_director=true
-    assert_eq!(results.results.len(), 2);
+    // 成功时返回三条 SystemNotice：发起方、接收方（不广播导演）、导演专属（无目标玩家）
+    assert_eq!(results.results.len(), 3);
     for r in &results.results {
         assert_eq!(r.message_type, MessageType::SystemNotice);
-        assert!(r.broadcast_to_director);
     }
+    let sender_msg = &results.results[0];
+    assert_eq!(sender_msg.broadcast_players, vec!["sender".to_string()]);
+    assert!(!sender_msg.broadcast_to_director);
+    let target_msg = &results.results[1];
+    assert_eq!(target_msg.broadcast_players, vec!["receiver".to_string()]);
+    assert!(!target_msg.broadcast_to_director);
+    let director_msg = &results.results[2];
+    assert!(director_msg.broadcast_players.is_empty());
+    assert!(director_msg.broadcast_to_director);
+    assert!(director_msg.log_message.contains("玩家"));
+    assert!(director_msg.log_message.contains("转移了物品"));
 }
 
 #[test]
@@ -611,8 +621,8 @@ fn transfer_item_via_scheduler_dispatch() {
             .any(|i| i.id == "i1"),
         "item transferred via scheduler"
     );
-    // 成功路径两条 SystemNotice
-    assert_eq!(results.results.len(), 2);
+    // 成功路径三条 SystemNotice（发起方、接收方、导演专属）
+    assert_eq!(results.results.len(), 3);
     for r in &results.results {
         assert_eq!(r.message_type, MessageType::SystemNotice);
     }

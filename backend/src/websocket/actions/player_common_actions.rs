@@ -934,7 +934,11 @@ impl GameState {
         let target_life = target.life;
 
         let sender_msg = format!("你将 {} 转移给了 {}", item_name, target_name);
-        let target_msg = format!("队友 {} 将 {} 转移给你，体力 -5", sender_name, item_name);
+        let target_msg = format!("队友 {} 给你转移了物品 {}，并扣除 5 点体力", sender_name, item_name);
+        let director_msg = format!(
+            "玩家 {} 给玩家 {} 转移了物品 {}（接收方体力 -5）",
+            sender_name, target_name, item_name
+        );
 
         let sender_data = serde_json::json!({
             "item_name": item_name,
@@ -946,6 +950,11 @@ impl GameState {
             "strength": target_strength_after,
             "life": target_life,
         });
+        let director_data = serde_json::json!({
+            "item_name": item_name,
+            "sender": sender_name,
+            "target": target_name,
+        });
 
         Ok(ActionResults {
             results: vec![
@@ -953,12 +962,18 @@ impl GameState {
                     sender_data,
                     vec![sender_id.to_string()],
                     sender_msg,
-                    true,
+                    false,
                 ),
                 ActionResult::new_system_message(
                     target_data,
                     vec![target_player_id.to_string()],
                     target_msg,
+                    false,
+                ),
+                ActionResult::new_system_message(
+                    director_data,
+                    vec![],
+                    director_msg,
                     true,
                 ),
             ],

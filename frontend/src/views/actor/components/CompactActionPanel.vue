@@ -43,7 +43,7 @@
             style="width: 120px;"
             placement="bottom-start"
             :popper-options="selectPopperOptions"
-            filterable
+            :filterable="!isCoarsePointer"
             :class="{
               'safe-zone-selected': isSafePlace(selectedPlace) && !isNextNightDestroyedPlace(selectedPlace),
               'next-destroy-selected': isNextNightDestroyedPlace(selectedPlace)
@@ -78,7 +78,7 @@
             style="width: 120px;"
             placement="bottom-start"
             :popper-options="selectPopperOptions"
-            filterable
+            :filterable="!isCoarsePointer"
             :class="{
               'safe-zone-selected': isSafePlace(targetPlace) && !isNextNightDestroyedPlace(targetPlace),
               'next-destroy-selected': isNextNightDestroyedPlace(targetPlace)
@@ -230,7 +230,7 @@
           style="width: 120px;"
           placement="bottom-start"
           :popper-options="selectPopperOptions"
-          filterable
+          :filterable="!isCoarsePointer"
         >
           <el-option
             v-for="otherPlayer in sortedOtherPlayers"
@@ -364,6 +364,10 @@ const selectPopperOptions = {
     }
   ]
 }
+
+// 触屏设备禁用下拉框筛选输入，避免点击时弹出输入法
+const isCoarsePointer =
+  typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
 
 const safeZoneOptionStyle: Record<string, string> = {
   color: '#67c23a',

@@ -76,7 +76,12 @@ const handleConfirm = () => {
 .radio-list {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 8px;
+}
+
+.radio-list :deep(.el-radio) {
+  margin-right: 0;
 }
 .empty-state {
   color: #909399;
