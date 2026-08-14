@@ -34,10 +34,11 @@
         <!-- 左侧内容区域 -->
         <div class="shared-left-content">
           <!-- 题头组件 -->
-          <DirectorHeader 
-            :game="game" 
+          <DirectorHeader
+            :game="game"
             :director-password="directorPassword"
             @status-updated="handleStatusUpdated"
+            @refresh="refreshGame"
           />
 
           <!-- WebSocket连接状态提示 -->
