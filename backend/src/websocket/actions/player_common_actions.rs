@@ -934,7 +934,7 @@ impl GameState {
         let target_life = target.life;
 
         let sender_msg = format!("你将 {} 转移给了 {}", item_name, target_name);
-        let target_msg = format!("队友 {} 给你转移了物品 {}，并扣除 5 点体力", sender_name, item_name);
+        let target_msg = format!("队友 {} 将 {} 转移给你，体力 -5", sender_name, item_name);
         let director_msg = format!(
             "玩家 {} 给玩家 {} 转移了物品 {}（接收方体力 -5）",
             sender_name, target_name, item_name
