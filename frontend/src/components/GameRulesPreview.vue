@@ -134,24 +134,6 @@
                 <p><strong>最大移动次数：</strong>{{ parsedRules.restMode.maxMoves }}次</p>
                 <p><strong>队友行为规则：</strong>{{ parsedRules.teammateBehavior }}</p>
                 <p><strong>死亡后物品去向：</strong>{{ getDispositionDisplayText(parsedRules.deathItemDisposition) }}</p>
-
-                <div class="teammate-behavior-details">
-                  <h5>队友行为详细设置：</h5>
-                  <el-tag type="info" v-if="parsedRules.parsedTeammateBehaviors.noHarm" class="tag">禁止队友伤害</el-tag>
-                  <el-tag type="info" v-if="parsedRules.parsedTeammateBehaviors.noSearch" class="tag">禁止搜索到队友</el-tag>
-                  <el-tag type="info" v-if="parsedRules.parsedTeammateBehaviors.canViewStatus" class="tag">允许查看队友状态</el-tag>
-                  <el-tag type="info" v-if="parsedRules.parsedTeammateBehaviors.canTransferItems" class="tag">允许赠送物品给队友</el-tag>
-                  <el-tag
-                    v-if="!parsedRules.parsedTeammateBehaviors.noHarm &&
-                       !parsedRules.parsedTeammateBehaviors.noSearch &&
-                       !parsedRules.parsedTeammateBehaviors.canViewStatus &&
-                       !parsedRules.parsedTeammateBehaviors.canTransferItems"
-                    type="success"
-                    class="tag"
-                  >
-                    无特殊队友行为规则
-                  </el-tag>
-                </div>
               </el-col>
             </el-row>
           </div>
@@ -461,19 +443,6 @@ const getDispositionDisplayText = (value: string) => {
 
 .tag {
   margin: 2px;
-}
-
-.teammate-behavior-details {
-  margin-top: 12px;
-  padding: 8px;
-  background-color: #f5f7fa;
-  border-radius: 4px;
-}
-
-.teammate-behavior-details h5 {
-  margin: 0 0 8px 0;
-  color: #606266;
-  font-size: 14px;
 }
 
 .recipe-block {
