@@ -8,6 +8,13 @@ export interface ShopListing {
   quantity: number;
 }
 
+// 售出系统稀有度价格条目
+export interface SellPriceEntry {
+  id: string;
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  price: number;
+}
+
 // 商店购买请求项
 export interface ShopBuyItem {
   listing_id: string;
@@ -97,6 +104,7 @@ export interface GlobalState {
   rules_config: Record<string, any>; // 后端传递的规则配置
   server_now?: string; // 后端服务器当前时间戳（ISO字符串）
   shop: ShopListing[];
+  sell_prices: SellPriceEntry[];
 }
 
 // 导演视角的游戏数据接口

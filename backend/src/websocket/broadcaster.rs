@@ -156,6 +156,7 @@ impl GameState {
             "rules_config": self.rules_config,
             "server_now": Utc::now(),
             "shop": self.shop,
+            "sell_prices": self.sell_prices,
         })
     }
 
@@ -169,6 +170,7 @@ impl GameState {
             "rules_config": self.rules_config,
             "server_now": Utc::now(),
             "shop": self.shop,
+            "sell_prices": self.sell_prices,
         })
     }
 }

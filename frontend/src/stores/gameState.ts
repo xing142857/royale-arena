@@ -14,7 +14,8 @@ import type {
   ActorPlace,
   ActionResult,
   ShopListing,
-  ShopBuyItem
+  ShopBuyItem,
+  SellPriceEntry
 } from '@/types/gameStateTypes'
 import { webSocketService, type WebSocketEvent } from '@/services/webSocketService'
 
@@ -97,6 +98,10 @@ export const useGameStateStore = defineStore('gameState', () => {
 
   const shopListings = computed<ShopListing[]>(() => {
     return globalState.value?.shop || []
+  })
+
+  const sellPrices = computed<SellPriceEntry[]>(() => {
+    return globalState.value?.sell_prices || []
   })
 
   // 操作
@@ -333,6 +338,21 @@ export const useGameStateStore = defineStore('gameState', () => {
     sendPlayerAction('shop_buy', { shop_buy_items: items })
   }
 
+  // 导演设置售出价格（新增或改价）
+  const sellSetPrice = (rarity: string, price: number) => {
+    sendDirectorAction('sell_set_price', { sell_rarity: rarity, sell_price: price })
+  }
+
+  // 导演删除售出价格
+  const sellRemovePrice = (rarity: string) => {
+    sendDirectorAction('sell_remove_price', { sell_rarity: rarity })
+  }
+
+  // 玩家售出道具
+  const sellItem = (itemId: string) => {
+    sendPlayerAction('sell_item', { item_id: itemId })
+  }
+
   const handleWebSocketEvent = (event: WebSocketEvent) => {
     switch (event.type) {
       case 'state_update':
@@ -443,6 +463,10 @@ export const useGameStateStore = defineStore('gameState', () => {
     shopListItem,
     shopDelistItem,
     shopBuy,
+    sellPrices,
+    sellSetPrice,
+    sellRemovePrice,
+    sellItem,
     setTeammateBehavior,
     clearError
   }

@@ -340,3 +340,17 @@ fn sell_item_via_scheduler_dispatch() {
     assert!((state.players["p1"].coins - 0.5).abs() < 1e-9);
     assert_eq!(results.results.len(), 2);
 }
+
+#[test]
+fn client_json_includes_sell_prices() {
+    let mut state = build_sell_game_state();
+    sell_add_player(&mut state, "p1", "玩家一");
+    sell_configure(&mut state, "common", 1.5);
+    let json = state.to_player_client_json();
+    let arr = json["sell_prices"].as_array().expect("sell_prices 必须存在");
+    assert_eq!(arr.len(), 1);
+    assert_eq!(arr[0]["rarity"], "common");
+    assert!((arr[0]["price"].as_f64().unwrap() - 1.5).abs() < 1e-9);
+    let djson = state.to_director_client_json();
+    assert!(djson["sell_prices"].as_array().unwrap().len() == 1);
+}
