@@ -75,6 +75,12 @@ pub struct ShopListing {
     /// 库存数量
     #[serde(default = "default_quantity")]
     pub quantity: i32,
+    /// 稀有度随机条目：Some("weapon" | "armor")；具体物品条目为 None
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub item_kind: Option<String>,
+    /// 与 item_kind 同时出现的稀有度（common | rare | epic | legendary）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rarity: Option<String>,
 }
 
 fn default_quantity() -> i32 {

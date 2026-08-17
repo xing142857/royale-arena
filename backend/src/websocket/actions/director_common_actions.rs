@@ -767,9 +767,20 @@ impl GameState {
         }
 
         // 验证物品名称是否存在于规则配置中
-        self.rule_engine
+        let preview = self
+            .rule_engine
             .create_item_from_name(&item_name)
             .map_err(|err| format!("物品 {} 不存在于规则配置中: {}", item_name, err))?;
+        if preview.is_weapon_or_armor() {
+            let data = serde_json::json!({});
+            return Ok(ActionResult::new_info_message(
+                data,
+                vec![],
+                "武器和防具请按稀有度类目上架".to_string(),
+                true,
+            )
+            .as_results());
+        }
 
         let qty = quantity.max(1);
 
@@ -778,6 +789,8 @@ impl GameState {
             item_name,
             price,
             quantity: qty,
+            item_kind: None,
+            rarity: None,
         };
 
         self.shop.push(listing.clone());
@@ -857,6 +870,118 @@ impl GameState {
             "legendary" => Some("橙"),
             _ => None,
         }
+    }
+
+    /// 商店稀有度类目：类别中文名
+    pub fn item_kind_display_name(kind: &str) -> Option<&'static str> {
+        match kind {
+            "weapon" => Some("武器"),
+            "armor" => Some("防具"),
+            _ => None,
+        }
+    }
+
+    /// 道具库中该类别该稀有度的全部候选显示名（多条目合并）
+    pub fn rarity_display_names(&self, item_kind: &str, rarity: &str) -> Vec<String> {
+        match item_kind {
+            "weapon" => self
+                .rule_engine
+                .items_config
+                .items
+                .weapons
+                .iter()
+                .filter(|w| w.rarity.as_deref() == Some(rarity))
+                .flat_map(|w| w.display_names.clone())
+                .collect(),
+            "armor" => self
+                .rule_engine
+                .items_config
+                .items
+                .armors
+                .iter()
+                .filter(|a| a.rarity.as_deref() == Some(rarity))
+                .flat_map(|a| a.display_names.clone())
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// 商店上架稀有度类目（武器/防具 × 稀有度，购买时随机抽取）
+    pub fn handle_shop_list_rarity(
+        &mut self,
+        item_kind: String,
+        rarity: String,
+        price: i32,
+        quantity: i32,
+    ) -> Result<ActionResults, String> {
+        let info = |message: String| -> ActionResults {
+            ActionResult::new_info_message(serde_json::json!({}), vec![], message, true).as_results()
+        };
+        let Some(kind_cn) = Self::item_kind_display_name(&item_kind) else {
+            return Ok(info(format!(
+                "类目必须为 weapon 或 armor，当前值为 {}",
+                item_kind
+            )));
+        };
+        let Some(rarity_cn) = Self::rarity_display_name(&rarity) else {
+            return Ok(info(format!(
+                "稀有度必须为 common/rare/epic/legendary，当前值为 {}",
+                rarity
+            )));
+        };
+
+        if price < 1 {
+            return Ok(info(format!("上架价格必须 >= 1，当前值为 {}", price)));
+        }
+
+        let pool = self.rarity_display_names(&item_kind, &rarity);
+        if pool.is_empty() {
+            return Ok(info(format!("道具库中没有{}类{}", rarity_cn, kind_cn)));
+        }
+
+        let qty = quantity.max(1);
+        if qty > pool.len() as i32 {
+            return Ok(info(format!(
+                "库存不能超过道具库中{}类{}的名称总数（{}）",
+                rarity_cn,
+                kind_cn,
+                pool.len()
+            )));
+        }
+
+        if self
+            .shop
+            .iter()
+            .any(|l| l.item_kind.as_deref() == Some(item_kind.as_str())
+                && l.rarity.as_deref() == Some(rarity.as_str()))
+        {
+            return Ok(info("该类目已上架".to_string()));
+        }
+
+        let listing = ShopListing {
+            id: uuid::Uuid::new_v4().to_string(),
+            item_name: format!("{}类{}（随机）", rarity_cn, kind_cn),
+            price,
+            quantity: qty,
+            item_kind: Some(item_kind),
+            rarity: Some(rarity),
+        };
+        self.shop.push(listing.clone());
+
+        let data = serde_json::json!({ "shop_listing": listing });
+        let broadcast_players: Vec<String> = self.players.keys().cloned().collect();
+        let mut action_result = ActionResult::new_system_message(
+            data,
+            broadcast_players,
+            format!(
+                "导演上架了{}类{}（随机），价格 {} 货币，库存 {}",
+                rarity_cn, kind_cn, price, qty
+            ),
+            true,
+        );
+        action_result.broadcast_to_all = true;
+
+        Ok(action_result.as_results())
     }
 
     /// 格式化价格显示（整数省略小数点）

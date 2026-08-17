@@ -39,6 +39,8 @@ fn set_teammate_behavior_updates_rule_engine_and_rules_config() {
     let params = DirectorActionParams {
         sell_rarity: None,
         sell_price: None,
+        shop_item_kind: None,
+        shop_rarity: None,
         teammate_behavior: Some(11),
         timestamp: None,
         place_name: None,
@@ -81,6 +83,8 @@ fn set_teammate_behavior_zero_disables_mode() {
     let params = DirectorActionParams {
         sell_rarity: None,
         sell_price: None,
+        shop_item_kind: None,
+        shop_rarity: None,
         teammate_behavior: Some(0),
         timestamp: None,
         place_name: None,
@@ -117,6 +121,8 @@ fn set_teammate_behavior_rejects_out_of_range() {
         let params = DirectorActionParams {
             sell_rarity: None,
             sell_price: None,
+            shop_item_kind: None,
+            shop_rarity: None,
             teammate_behavior: Some(bad),
             timestamp: None,
             place_name: None,

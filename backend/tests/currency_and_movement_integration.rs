@@ -142,6 +142,8 @@ fn make_shop_listing(id: &str, item_name: &str, price: i32, quantity: i32) -> Sh
         item_name: item_name.to_string(),
         price,
         quantity,
+        item_kind: None,
+        rarity: None,
     }
 }
 

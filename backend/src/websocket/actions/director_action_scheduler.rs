@@ -52,6 +52,10 @@ pub struct DirectorActionParams {
     /// 售出系统：稀有度与价格（0.5 步长）
     pub sell_rarity: Option<String>,
     pub sell_price: Option<f64>,
+
+    /// 商店稀有度类目上架：类别与稀有度
+    pub shop_item_kind: Option<String>,
+    pub shop_rarity: Option<String>,
 }
 
 impl DirectorActionParams {
@@ -238,6 +242,22 @@ impl DirectorActionScheduler {
                     .shop_listing_id
                     .ok_or_else(|| "Missing shop_listing_id parameter".to_string())?;
                 game_state.handle_shop_delist_item(&listing_id)
+            }
+
+            "shop_list_rarity" => {
+                let item_kind = action_params
+                    .shop_item_kind
+                    .clone()
+                    .ok_or_else(|| "Missing shop_item_kind parameter".to_string())?;
+                let rarity = action_params
+                    .shop_rarity
+                    .clone()
+                    .ok_or_else(|| "Missing shop_rarity parameter".to_string())?;
+                let price = action_params
+                    .price
+                    .ok_or_else(|| "Missing price parameter".to_string())?;
+                let quantity = action_params.quantity.unwrap_or(1);
+                game_state.handle_shop_list_rarity(item_kind, rarity, price, quantity)
             }
 
             "set_teammate_behavior" => {
