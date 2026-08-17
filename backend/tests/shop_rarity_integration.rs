@@ -192,3 +192,135 @@ fn client_json_carries_rarity_listing_fields() {
     assert!(exact.get("item_kind").is_none());
     assert!(exact.get("rarity").is_none());
 }
+
+use royale_arena_backend::game::game_rule_engine::Item;
+use royale_arena_backend::websocket::models::ShopBuyItem;
+
+fn buy(
+    state: &mut GameState,
+    player_id: &str,
+    listing_id: &str,
+    qty: i32,
+) -> royale_arena_backend::websocket::models::ActionResults {
+    state
+        .handle_shop_buy_action(player_id, &[ShopBuyItem { listing_id: listing_id.to_string(), quantity: qty }])
+        .expect("buy dispatch ok")
+}
+
+fn list_rarity(state: &mut GameState, kind: &str, rarity: &str, price: i32, qty: i32) -> String {
+    director_dispatch(state, json!({
+        "action_type": "shop_list_rarity",
+        "shop_item_kind": kind, "shop_rarity": rarity, "price": price, "quantity": qty
+    })).unwrap();
+    state.shop.iter().find(|l| l.item_kind.as_deref() == Some(kind)).unwrap().id.clone()
+}
+
+fn build_weapon_by_name(state: &GameState, name: &str) -> Item {
+    state.rule_engine.create_item_from_name(name).unwrap()
+}
+
+fn buy2(
+    state: &mut GameState,
+    player_id: &str,
+    items: &[(String, i32)],
+) -> royale_arena_backend::websocket::models::ActionResults {
+    let buys: Vec<ShopBuyItem> = items
+        .iter()
+        .map(|(id, q)| ShopBuyItem { listing_id: id.clone(), quantity: *q })
+        .collect();
+    state.handle_shop_buy_action(player_id, &buys).expect("buy ok")
+}
+
+#[test]
+fn buy_rarity_listing_success() {
+    let mut state = build_shop_rarity_state();
+    shop_add_player(&mut state, "p1", "玩家一");
+    state.players.get_mut("p1").unwrap().coins = 10.0;
+    let listing_id = list_rarity(&mut state, "weapon", "common", 2, 2);
+
+    let results = buy(&mut state, "p1", &listing_id, 1);
+    let p = state.players.get("p1").unwrap();
+    assert_eq!(p.inventory.len(), 1);
+    let item = &p.inventory[0];
+    assert!(matches!(item.item_type, royale_arena_backend::game::game_rule_engine::ItemType::Weapon(_)));
+    assert_eq!(item.rarity.as_deref(), Some("common"));
+    assert!(["青钢剑", "铁刃短剑"].contains(&item.name.as_str()));
+    assert!((p.coins - 8.0).abs() < 1e-9, "扣款 2，实际 {}", p.coins);
+    assert_eq!(state.shop[0].quantity, 1, "库存减一");
+    assert!(results.results[0].log_message.contains("从商店购买"));
+}
+
+#[test]
+fn buy_multiple_units_draw_distinct_names() {
+    let mut state = build_shop_rarity_state();
+    shop_add_player(&mut state, "p1", "玩家一");
+    state.players.get_mut("p1").unwrap().coins = 10.0;
+    let listing_id = list_rarity(&mut state, "weapon", "common", 2, 2);
+
+    let _ = buy(&mut state, "p1", &listing_id, 2);
+    let p = state.players.get("p1").unwrap();
+    assert_eq!(p.inventory.len(), 2);
+    assert_ne!(p.inventory[0].name, p.inventory[1].name, "同批购买名字互不相同");
+    assert!((p.coins - 6.0).abs() < 1e-9);
+    assert!(state.shop.is_empty(), "库存归零自动移除");
+}
+
+#[test]
+fn buy_fails_atomically_when_pool_exhausted() {
+    let mut state = build_shop_rarity_state();
+    shop_add_player(&mut state, "p1", "玩家一");
+    state.players.get_mut("p1").unwrap().coins = 10.0;
+    // 占满 common 武器池的两个名字
+    for name in ["青钢剑", "铁刃短剑"] {
+        let item = build_weapon_by_name(&state, name);
+        state.players.get_mut("p1").unwrap().inventory.push(item);
+    }
+    let listing_id = list_rarity(&mut state, "weapon", "common", 2, 1);
+
+    let results = buy(&mut state, "p1", &listing_id, 1);
+    assert_eq!(results.results[0].message_type, MessageType::Info);
+    assert!(results.results[0].log_message.contains("已全部在场"));
+    let p = state.players.get("p1").unwrap();
+    assert_eq!(p.inventory.len(), 2, "无状态变更");
+    assert!((p.coins - 10.0).abs() < 1e-9);
+    assert_eq!(state.shop[0].quantity, 1, "库存不变");
+}
+
+#[test]
+fn mixed_exact_and_rarity_purchase() {
+    let mut state = build_shop_rarity_state();
+    shop_add_player(&mut state, "p1", "玩家一");
+    state.players.get_mut("p1").unwrap().coins = 10.0;
+    director_dispatch(&mut state, json!({
+        "action_type": "shop_list_item", "item_name": "[HP10]测试药水", "price": 1, "quantity": 3
+    })).unwrap();
+    let rarity_id = list_rarity(&mut state, "armor", "common", 2, 1);
+    let exact_id = state.shop.iter().find(|l| l.item_kind.is_none()).unwrap().id.clone();
+
+    let _ = buy2(&mut state, "p1", &[(rarity_id, 1), (exact_id, 2)]);
+    let p = state.players.get("p1").unwrap();
+    assert_eq!(p.inventory.len(), 3, "1 件随机防具 + 2 瓶药水");
+    assert_eq!(p.inventory.iter().filter(|i| matches!(i.item_type, royale_arena_backend::game::game_rule_engine::ItemType::Armor(_))).count(), 1);
+    assert_eq!(p.inventory.iter().filter(|i| i.name == "[HP10]测试药水").count(), 2);
+    assert!((p.coins - 6.0).abs() < 1e-9, "2 + 1×2 = 4，实际 {}", p.coins);
+}
+
+#[test]
+fn legacy_exact_weapon_listing_still_buyable() {
+    let mut state = build_shop_rarity_state();
+    shop_add_player(&mut state, "p1", "玩家一");
+    state.players.get_mut("p1").unwrap().coins = 5.0;
+    state.shop.push(ShopListing {
+        id: "legacy-w1".to_string(),
+        item_name: "青钢剑".to_string(),
+        price: 1,
+        quantity: 1,
+        item_kind: None,
+        rarity: None,
+    });
+    let _ = buy(&mut state, "p1", "legacy-w1", 1);
+    let p = state.players.get("p1").unwrap();
+    assert_eq!(p.inventory.len(), 1);
+    assert_eq!(p.inventory[0].name, "青钢剑");
+    assert!((p.coins - 4.0).abs() < 1e-9);
+}

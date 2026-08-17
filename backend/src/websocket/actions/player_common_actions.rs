@@ -2,6 +2,8 @@
 
 use std::collections::HashMap;
 
+use rand::Rng;
+
 use crate::websocket::models::{
     ActionResult, ActionResults, GameState, SearchResultType, SearchTarget,
 };
@@ -678,8 +680,9 @@ impl GameState {
             }
         }
 
-        // 验证并收集购买信息：(listing_id, item_name, price, buy_qty)
-        let mut purchase_plan: Vec<(String, String, i32, i32)> = Vec::new();
+        // 验证并收集购买信息：(listing_id, item_name, price, buy_qty, kind_rarity)
+        let mut purchase_plan: Vec<(String, String, i32, i32, Option<(String, String)>)> =
+            Vec::new();
         let mut total_cost: i32 = 0;
         let mut total_items: usize = 0;
 
@@ -742,6 +745,7 @@ impl GameState {
                 listing.item_name.clone(),
                 listing.price,
                 buy_qty,
+                listing.item_kind.clone().zip(listing.rarity.clone()),
             ));
         }
 
@@ -790,21 +794,63 @@ impl GameState {
         // 预先创建所有物品（原子性检查），任何一个失败则中止整笔交易
         let player_name = self.players.get(player_id).unwrap().name.clone();
         let mut created_items = Vec::new();
-        for (_id, item_name, _price, qty) in &purchase_plan {
+        let existing_names = self.collect_existing_weapons_and_armor_names();
+        let mut drawn_names: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for (_id, item_name, _price, qty, kind_rarity) in &purchase_plan {
             for _ in 0..*qty {
-                match self.rule_engine.create_item_from_name(item_name) {
-                    Ok(item) => created_items.push(item),
-                    Err(err) => {
-                        let data = serde_json::json!({});
-                        return Ok(ActionResult::new_info_message(
-                            data,
-                            vec![player_id.to_string()],
-                            format!("创建物品 {} 失败，交易取消: {}", item_name, err),
-                            false,
-                        )
-                        .as_results());
+                let item = match kind_rarity {
+                    None => match self.rule_engine.create_item_from_name(item_name) {
+                        Ok(item) => item,
+                        Err(err) => {
+                            let data = serde_json::json!({});
+                            return Ok(ActionResult::new_info_message(
+                                data,
+                                vec![player_id.to_string()],
+                                format!("创建物品 {} 失败，交易取消: {}", item_name, err),
+                                false,
+                            )
+                            .as_results());
+                        }
+                    },
+                    Some((kind, rarity)) => {
+                        let candidates = self.rarity_display_names(kind, rarity);
+                        let available: Vec<&String> = candidates
+                            .iter()
+                            .filter(|n| !existing_names.contains(*n) && !drawn_names.contains(*n))
+                            .collect();
+                        if available.is_empty() {
+                            let kind_cn =
+                                Self::item_kind_display_name(kind).unwrap_or(kind.as_str());
+                            let rarity_cn =
+                                Self::rarity_display_name(rarity).unwrap_or(rarity.as_str());
+                            let data = serde_json::json!({});
+                            return Ok(ActionResult::new_info_message(
+                                data,
+                                vec![player_id.to_string()],
+                                format!("{}类{}可抽选的名称已全部在场，购买失败", rarity_cn, kind_cn),
+                                false,
+                            )
+                            .as_results());
+                        }
+                        let mut rng = rand::rng();
+                        let name = available[rng.random_range(0..available.len())].clone();
+                        drawn_names.insert(name.clone());
+                        match self.rule_engine.create_item_from_name(&name) {
+                            Ok(item) => item,
+                            Err(err) => {
+                                let data = serde_json::json!({});
+                                return Ok(ActionResult::new_info_message(
+                                    data,
+                                    vec![player_id.to_string()],
+                                    format!("创建物品 {} 失败，交易取消: {}", name, err),
+                                    false,
+                                )
+                                .as_results());
+                            }
+                        }
                     }
-                }
+                };
+                created_items.push(item);
             }
         }
 
@@ -817,7 +863,7 @@ impl GameState {
         player.coins -= total_cost as f64;
 
         // 扣减库存或移除售罄商品
-        for (listing_id, _, _, buy_qty) in &purchase_plan {
+        for (listing_id, _, _, buy_qty, _) in &purchase_plan {
             if let Some(listing) = self.shop.iter_mut().find(|l| l.id == *listing_id) {
                 listing.quantity = listing
                     .quantity
