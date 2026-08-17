@@ -8,19 +8,16 @@
     <div v-if="sellableItems.length === 0" class="empty-state">
       没有可售出的道具（只有已配置售出价格的武器和防具可售）
     </div>
-    <el-radio-group v-else v-model="selected" class="radio-list">
-      <el-radio v-for="it in sellableItems" :key="it.id" :value="it.id">
+    <el-checkbox-group v-else v-model="selected" class="check-list">
+      <el-checkbox v-for="it in sellableItems" :key="it.id" :value="it.id">
         {{ it.name }}
         <span class="price">→ {{ formatPrice(it.price) }} 币</span>
-      </el-radio>
-    </el-radio-group>
+      </el-checkbox>
+    </el-checkbox-group>
+    <div v-if="validationError" class="pair-hint">{{ validationError }}</div>
     <template #footer>
       <el-button @click="$emit('update:modelValue', false)">取消</el-button>
-      <el-button
-        type="primary"
-        :disabled="!selected || sellableItems.length === 0"
-        @click="handleConfirm"
-      >
+      <el-button type="primary" :disabled="!canConfirm" @click="handleConfirm">
         确认售出
       </el-button>
     </template>
@@ -42,12 +39,13 @@ const emit = defineEmits<{
 }>()
 
 const store = useGameStateStore()
-const selected = ref('')
+const selected = ref<string[]>([])
 
 interface SellableItem {
   id: string
   name: string
   price: number
+  rarity: string | null
 }
 
 const sellableItems = computed<SellableItem[]>(() => {
@@ -59,34 +57,57 @@ const sellableItems = computed<SellableItem[]>(() => {
         (it.item_type?.type === 'weapon' || it.item_type?.type === 'armor') &&
         priceOf(it.rarity) !== undefined
     )
-    .map((it) => ({ id: it.id, name: it.name, price: priceOf(it.rarity) as number }))
+    .map((it) => ({ id: it.id, name: it.name, price: priceOf(it.rarity) as number, rarity: it.rarity }))
 })
+
+const selectedItems = computed(() =>
+  sellableItems.value.filter((it) => selected.value.includes(it.id))
+)
+
+const validationError = computed(() => {
+  const greens = selectedItems.value.filter((it) => it.rarity === 'common')
+  const others = selectedItems.value.filter((it) => it.rarity !== 'common')
+  if (greens.length === 1 && others.length === 0)
+    return '绿色物品需成对售出，请再勾选 1 件绿色物品'
+  if (greens.length >= 1 && others.length >= 1) return '绿色物品不能与其他稀有度混合售出'
+  if (others.length >= 2) return '非绿色物品一次只能售出 1 件'
+  return ''
+})
+
+const canConfirm = computed(
+  () => selectedItems.value.length > 0 && validationError.value === ''
+)
 
 const formatPrice = (p: number) => String(p)
 
 watch(
   () => props.modelValue,
   (open) => {
-    if (open) selected.value = ''
+    if (open) selected.value = []
   }
 )
 
 const handleConfirm = () => {
-  if (!selected.value) return
+  if (!canConfirm.value) return
   store.sellItem(selected.value)
   emit('update:modelValue', false)
 }
 </script>
 
 <style scoped>
-.radio-list {
+.check-list {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
 }
-.radio-list :deep(.el-radio) {
+.check-list :deep(.el-checkbox) {
   margin-right: 0;
+}
+.pair-hint {
+  margin-top: 8px;
+  color: #e6a23c;
+  font-size: 12px;
 }
 .price {
   margin-left: 8px;

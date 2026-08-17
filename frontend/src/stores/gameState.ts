@@ -364,8 +364,8 @@ export const useGameStateStore = defineStore('gameState', () => {
   }
 
   // 玩家售出道具
-  const sellItem = (itemId: string) => {
-    sendPlayerAction('sell_item', { item_id: itemId })
+  const sellItem = (itemIds: string[]) => {
+    sendPlayerAction('sell_item', { item_ids: itemIds })
   }
 
   const handleWebSocketEvent = (event: WebSocketEvent) => {
