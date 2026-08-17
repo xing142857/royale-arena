@@ -188,7 +188,7 @@ fn client_json_carries_rarity_listing_fields() {
     })).unwrap();
     let json = state.to_player_client_json();
     let arr = json["shop"].as_array().expect("shop 数组存在");
-    assert_eq!(arr[0]["item_kind"], "weapon".replace("weapon", "armor"));
+    assert_eq!(arr[0]["item_kind"], "armor");
     assert_eq!(arr[0]["rarity"], "common");
     // 具体物品条目不携带新字段（skip_serializing_if）
     director_dispatch(&mut state, json!({
@@ -545,7 +545,7 @@ fn mixed_exact_and_rarity_purchase() {
     assert_eq!(p.inventory.len(), 3, "1 件随机防具 + 2 瓶药水");
     assert_eq!(p.inventory.iter().filter(|i| matches!(i.item_type, royale_arena_backend::game::game_rule_engine::ItemType::Armor(_))).count(), 1);
     assert_eq!(p.inventory.iter().filter(|i| i.name == "[HP10]测试药水").count(), 2);
-    assert!((p.coins - 5.0).abs() < 1e-9, "2 + 1×2 = 4，实际 {}", p.coins);
+    assert!((p.coins - 6.0).abs() < 1e-9, "2 + 1×2 = 4，实际 {}", p.coins);
 }
 
 #[test]
