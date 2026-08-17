@@ -109,6 +109,11 @@
           <ShopManagement />
         </div>
 
+        <!-- 售出系统 -->
+        <div class="full-width-section">
+          <SellSystemCard />
+        </div>
+
         <!-- 广播消息面板 -->
         <BroadcastMessage 
           ref="broadcastMessageRef"
@@ -131,6 +136,7 @@ import PlaceStatusCard from '../components/PlaceStatusCard.vue'
 import PlayerStatusCard from '../components/PlayerStatusCard.vue'
 import BroadcastMessage from '../components/BroadcastMessage.vue'
 import ShopManagement from '../components/ShopManagement.vue'
+import SellSystemCard from '../components/SellSystemCard.vue'
 import TeammateModeCard from '../components/TeammateModeCard.vue'
 import { useManualSaveGame } from '../composables/useManualSaveGame'
 import { areStringArraysEqual } from '@/utils/commonUtils'
