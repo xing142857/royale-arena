@@ -158,7 +158,10 @@
               <template v-else>
                 <div class="shop-item-list">
                   <div v-for="listing in shopListings" :key="listing.id" class="shop-item-row">
-                    <span class="shop-item-name">{{ listing.item_name }}</span>
+                    <span class="shop-item-name">
+                      <span v-if="listing.rarity" :class="['rarity-dot', listing.rarity]"></span>
+                      {{ listing.item_name }}
+                    </span>
                     <span class="shop-item-meta">
                       <span class="shop-item-price">{{ listing.price }} 币</span>
                       <span class="shop-item-stock">库存 {{ listing.quantity }}</span>
@@ -1281,5 +1284,26 @@ function formatDuration(durationMs: number) {
     transform: scale(0.75);
     transform-origin: left center;
   }
+}
+
+.rarity-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.rarity-dot.common {
+  background-color: #67c23a;
+}
+.rarity-dot.rare {
+  background-color: #409eff;
+}
+.rarity-dot.epic {
+  background-color: #9b59b6;
+}
+.rarity-dot.legendary {
+  background-color: #e6a23c;
 }
 </style>

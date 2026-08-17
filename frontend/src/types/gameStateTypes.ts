@@ -6,6 +6,8 @@ export interface ShopListing {
   item_name: string;
   price: number;
   quantity: number;
+  item_kind?: 'weapon' | 'armor';
+  rarity?: 'common' | 'rare' | 'epic' | 'legendary';
 }
 
 // 售出系统稀有度价格条目

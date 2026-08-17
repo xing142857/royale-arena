@@ -328,6 +328,21 @@ export const useGameStateStore = defineStore('gameState', () => {
     sendDirectorAction('shop_list_item', { item_name: itemName, price, quantity })
   }
 
+  // 商店上架稀有度类目（武器/防具随机）
+  const shopListRarity = (
+    itemKind: 'weapon' | 'armor',
+    rarity: string,
+    price: number,
+    quantity: number = 1
+  ) => {
+    sendDirectorAction('shop_list_rarity', {
+      shop_item_kind: itemKind,
+      shop_rarity: rarity,
+      price,
+      quantity
+    })
+  }
+
   // 商店下架物品
   const shopDelistItem = (listingId: string) => {
     sendDirectorAction('shop_delist_item', { shop_listing_id: listingId })
@@ -461,6 +476,7 @@ export const useGameStateStore = defineStore('gameState', () => {
     removePlayerItem, // 新增导出
     triggerNightSettlement,
     shopListItem,
+    shopListRarity,
     shopDelistItem,
     shopBuy,
     sellPrices,
