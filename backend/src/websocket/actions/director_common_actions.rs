@@ -2,7 +2,8 @@
 
 use crate::websocket::actions::utils::{format_delta, format_delta_f64};
 use crate::websocket::models::{
-    ActionResult, ActionResults, AirdropItem, GameState, ItemDeletionItem, ShopListing,
+    ActionResult, ActionResults, AirdropItem, GameState, ItemDeletionItem, SellPriceEntry,
+    ShopListing,
 };
 
 impl GameState {
@@ -833,10 +834,7 @@ impl GameState {
 
         // 2. 同步到 rules_config JSON（让前端 state_update 看到新值、让存档保留）
         if let Some(obj) = self.rules_config.as_object_mut() {
-            obj.insert(
-                "teammate_behavior".to_string(),
-                serde_json::json!(mode),
-            );
+            obj.insert("teammate_behavior".to_string(), serde_json::json!(mode));
         }
 
         // 3. 全员广播 SystemNotice
@@ -848,5 +846,116 @@ impl GameState {
             true,
         )
         .as_results())
+    }
+
+    /// 售出价格校验与显示辅助
+    pub fn rarity_display_name(rarity: &str) -> Option<&'static str> {
+        match rarity {
+            "common" => Some("绿"),
+            "rare" => Some("蓝"),
+            "epic" => Some("紫"),
+            "legendary" => Some("橙"),
+            _ => None,
+        }
+    }
+
+    /// 格式化价格显示（整数省略小数点）
+    pub fn format_price(price: f64) -> String {
+        if (price - price.round()).abs() < 1e-9 {
+            format!("{}", price.round() as i64)
+        } else {
+            format!("{}", price)
+        }
+    }
+
+    /// 导演设置售出价格（新增或改价）
+    pub fn handle_sell_set_price(
+        &mut self,
+        rarity: String,
+        price: f64,
+    ) -> Result<ActionResults, String> {
+        let Some(display) = Self::rarity_display_name(&rarity) else {
+            return Ok(ActionResult::new_info_message(
+                serde_json::json!({}),
+                vec![],
+                format!(
+                    "稀有度必须为 common/rare/epic/legendary，当前值为 {}",
+                    rarity
+                ),
+                true,
+            )
+            .as_results());
+        };
+        if price <= 0.0 || (price * 2.0 - (price * 2.0).round()).abs() >= 1e-9 {
+            return Ok(ActionResult::new_info_message(
+                serde_json::json!({}),
+                vec![],
+                format!("售出价格必须为 0.5 的倍数且大于 0，当前值为 {}", price),
+                true,
+            )
+            .as_results());
+        }
+
+        let broadcast_rarity = rarity.clone();
+        if let Some(entry) = self.sell_prices.iter_mut().find(|e| e.rarity == rarity) {
+            entry.price = price;
+        } else {
+            self.sell_prices.push(SellPriceEntry {
+                id: uuid::Uuid::new_v4().to_string(),
+                rarity,
+                price,
+            });
+        }
+
+        let broadcast_players: Vec<String> = self.players.keys().cloned().collect();
+        let mut action_result = ActionResult::new_system_message(
+            serde_json::json!({ "rarity": broadcast_rarity, "price": price }),
+            broadcast_players,
+            format!(
+                "导演更新了售出价格：{}类道具 {} 货币",
+                display,
+                Self::format_price(price)
+            ),
+            true,
+        );
+        action_result.broadcast_to_all = true;
+        Ok(action_result.as_results())
+    }
+
+    /// 导演删除某稀有度的售出配置
+    pub fn handle_sell_remove_price(&mut self, rarity: &str) -> Result<ActionResults, String> {
+        let Some(display) = Self::rarity_display_name(rarity) else {
+            return Ok(ActionResult::new_info_message(
+                serde_json::json!({}),
+                vec![],
+                format!(
+                    "稀有度必须为 common/rare/epic/legendary，当前值为 {}",
+                    rarity
+                ),
+                true,
+            )
+            .as_results());
+        };
+        let Some(pos) = self.sell_prices.iter().position(|e| e.rarity == rarity) else {
+            return Ok(ActionResult::new_info_message(
+                serde_json::json!({}),
+                vec![],
+                format!("{}类道具尚未配置售出价格", display),
+                true,
+            )
+            .as_results());
+        };
+        let rarity = rarity.to_string();
+        self.sell_prices.remove(pos);
+
+        let broadcast_players: Vec<String> = self.players.keys().cloned().collect();
+        let mut action_result = ActionResult::new_system_message(
+            serde_json::json!({ "rarity": rarity }),
+            broadcast_players,
+            format!("导演关闭了{}类道具的售出", display),
+            true,
+        );
+        action_result.broadcast_to_all = true;
+        Ok(action_result.as_results())
     }
 }

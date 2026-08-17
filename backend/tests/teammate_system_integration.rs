@@ -26,7 +26,8 @@ fn build_empty_game_state(mode: i32) -> GameState {
 }
 
 fn extract_mode_from_rules(state: &GameState) -> i32 {
-    state.rules_config
+    state
+        .rules_config
         .get("teammate_behavior")
         .and_then(|v| v.as_i64())
         .unwrap_or(0) as i32
@@ -36,13 +37,30 @@ fn extract_mode_from_rules(state: &GameState) -> i32 {
 fn set_teammate_behavior_updates_rule_engine_and_rules_config() {
     let mut state = build_empty_game_state(0);
     let params = DirectorActionParams {
+        sell_rarity: None,
+        sell_price: None,
         teammate_behavior: Some(11),
-        timestamp: None, place_name: None, is_destroyed: None, places: None,
-        weather: None, player_id: None, life: None, strength: None, coins: None,
-        target_place: None, action_type: None, rest_enabled: None,
-        target_type: None, item_name: None, message: None,
-        airdrops: None, deletions: None, clear_all: None,
-        shop_listing_id: None, price: None, quantity: None,
+        timestamp: None,
+        place_name: None,
+        is_destroyed: None,
+        places: None,
+        weather: None,
+        player_id: None,
+        life: None,
+        strength: None,
+        coins: None,
+        target_place: None,
+        action_type: None,
+        rest_enabled: None,
+        target_type: None,
+        item_name: None,
+        message: None,
+        airdrops: None,
+        deletions: None,
+        clear_all: None,
+        shop_listing_id: None,
+        price: None,
+        quantity: None,
     };
     let results = DirectorActionScheduler::dispatch(&mut state, "set_teammate_behavior", params)
         .expect("dispatch should succeed");
@@ -61,13 +79,30 @@ fn set_teammate_behavior_updates_rule_engine_and_rules_config() {
 fn set_teammate_behavior_zero_disables_mode() {
     let mut state = build_empty_game_state(11);
     let params = DirectorActionParams {
+        sell_rarity: None,
+        sell_price: None,
         teammate_behavior: Some(0),
-        timestamp: None, place_name: None, is_destroyed: None, places: None,
-        weather: None, player_id: None, life: None, strength: None, coins: None,
-        target_place: None, action_type: None, rest_enabled: None,
-        target_type: None, item_name: None, message: None,
-        airdrops: None, deletions: None, clear_all: None,
-        shop_listing_id: None, price: None, quantity: None,
+        timestamp: None,
+        place_name: None,
+        is_destroyed: None,
+        places: None,
+        weather: None,
+        player_id: None,
+        life: None,
+        strength: None,
+        coins: None,
+        target_place: None,
+        action_type: None,
+        rest_enabled: None,
+        target_type: None,
+        item_name: None,
+        message: None,
+        airdrops: None,
+        deletions: None,
+        clear_all: None,
+        shop_listing_id: None,
+        price: None,
+        quantity: None,
     };
     DirectorActionScheduler::dispatch(&mut state, "set_teammate_behavior", params)
         .expect("dispatch should succeed");
@@ -80,13 +115,30 @@ fn set_teammate_behavior_rejects_out_of_range() {
     let mut state = build_empty_game_state(0);
     for bad in [16_i32, -1, 100] {
         let params = DirectorActionParams {
+            sell_rarity: None,
+            sell_price: None,
             teammate_behavior: Some(bad),
-            timestamp: None, place_name: None, is_destroyed: None, places: None,
-            weather: None, player_id: None, life: None, strength: None, coins: None,
-            target_place: None, action_type: None, rest_enabled: None,
-            target_type: None, item_name: None, message: None,
-            airdrops: None, deletions: None, clear_all: None,
-            shop_listing_id: None, price: None, quantity: None,
+            timestamp: None,
+            place_name: None,
+            is_destroyed: None,
+            places: None,
+            weather: None,
+            player_id: None,
+            life: None,
+            strength: None,
+            coins: None,
+            target_place: None,
+            action_type: None,
+            rest_enabled: None,
+            target_type: None,
+            item_name: None,
+            message: None,
+            airdrops: None,
+            deletions: None,
+            clear_all: None,
+            shop_listing_id: None,
+            price: None,
+            quantity: None,
         };
         let result = DirectorActionScheduler::dispatch(&mut state, "set_teammate_behavior", params);
         assert!(result.is_err(), "mode={} should be rejected", bad);
@@ -177,7 +229,10 @@ fn attack_solo_player_works_even_with_mode_on() {
         .results
         .iter()
         .any(|r| r.message_type == MessageType::SystemNotice);
-    assert!(has_system, "attack on solo should produce SystemNotice, not Info");
+    assert!(
+        has_system,
+        "attack on solo should produce SystemNotice, not Info"
+    );
     assert!(state.players["target"].life < 100);
 }
 
@@ -188,9 +243,7 @@ fn attack_teammate_with_mode_off_works_normally() {
     add_player_at(&mut state, "target", 1, "loc");
     set_last_search_to(&mut state, "attacker", "target");
 
-    state
-        .handle_attack_action("attacker")
-        .expect("attack ok");
+    state.handle_attack_action("attacker").expect("attack ok");
     assert!(
         state.players["target"].life < 100,
         "damage should apply when mode is off"
@@ -221,11 +274,7 @@ fn equip_legendary_weapon(state: &mut GameState, player_id: &str) {
             bleed_damage: Some(10),
         }),
     };
-    state
-        .players
-        .get_mut(player_id)
-        .unwrap()
-        .equipped_weapon = Some(weapon);
+    state.players.get_mut(player_id).unwrap().equipped_weapon = Some(weapon);
 }
 
 #[test]
@@ -282,12 +331,7 @@ fn remote_mine_skips_teammates() {
             uses_night: None,
         }),
     };
-    state
-        .players
-        .get_mut("miner")
-        .unwrap()
-        .inventory
-        .push(mine);
+    state.players.get_mut("miner").unwrap().inventory.push(mine);
 
     let enemy_before = state.players["enemy"].life;
     let friend_before = state.players["friend"].life;
@@ -341,7 +385,10 @@ fn search_filters_out_teammates_when_bit2_set() {
         })
         .collect();
 
-    assert!(target_ids.iter().any(|id| id == "enemy"), "enemy should be searchable");
+    assert!(
+        target_ids.iter().any(|id| id == "enemy"),
+        "enemy should be searchable"
+    );
     assert!(
         !target_ids.iter().any(|id| id == "friend"),
         "teammate should be filtered"
@@ -495,7 +542,12 @@ fn transfer_item_rejected_when_target_low_strength() {
         .handle_transfer_item_action("sender", "i1", "receiver")
         .expect("ok");
     assert_eq!(results.results[0].message_type, MessageType::Info);
-    assert!(state.players["sender"].inventory.iter().any(|i| i.id == "i1"));
+    assert!(
+        state.players["sender"]
+            .inventory
+            .iter()
+            .any(|i| i.id == "i1")
+    );
     assert_eq!(state.players["receiver"].strength, 3);
 }
 
@@ -511,7 +563,12 @@ fn transfer_item_rejected_when_target_dead() {
         .handle_transfer_item_action("sender", "i1", "receiver")
         .expect("ok");
     assert_eq!(results.results[0].message_type, MessageType::Info);
-    assert!(state.players["sender"].inventory.iter().any(|i| i.id == "i1"));
+    assert!(
+        state.players["sender"]
+            .inventory
+            .iter()
+            .any(|i| i.id == "i1")
+    );
 }
 
 #[test]
@@ -554,7 +611,12 @@ fn transfer_item_rejected_when_target_backpack_full() {
         .handle_transfer_item_action("sender", "i1", "receiver")
         .expect("ok");
     assert_eq!(results.results[0].message_type, MessageType::Info);
-    assert!(state.players["sender"].inventory.iter().any(|i| i.id == "i1"));
+    assert!(
+        state.players["sender"]
+            .inventory
+            .iter()
+            .any(|i| i.id == "i1")
+    );
 }
 
 #[test]
@@ -595,7 +657,12 @@ fn transfer_item_rejected_when_not_teammates() {
         .handle_transfer_item_action("sender", "i1", "other")
         .expect("ok");
     assert_eq!(results.results[0].message_type, MessageType::Info);
-    assert!(state.players["sender"].inventory.iter().any(|i| i.id == "i1"));
+    assert!(
+        state.players["sender"]
+            .inventory
+            .iter()
+            .any(|i| i.id == "i1")
+    );
 }
 
 #[test]

@@ -48,6 +48,10 @@ pub struct DirectorActionParams {
 
     /// 队友行为位掩码（0..=15）
     pub teammate_behavior: Option<i32>,
+
+    /// 售出系统：稀有度与价格（0.5 步长）
+    pub sell_rarity: Option<String>,
+    pub sell_price: Option<f64>,
 }
 
 impl DirectorActionParams {
@@ -241,12 +245,28 @@ impl DirectorActionScheduler {
                     .teammate_behavior
                     .ok_or_else(|| "Missing teammate_behavior parameter".to_string())?;
                 if !(0..=15).contains(&mode) {
-                    return Err(format!(
-                        "teammate_behavior must be in 0..=15, got {}",
-                        mode
-                    ));
+                    return Err(format!("teammate_behavior must be in 0..=15, got {}", mode));
                 }
                 game_state.handle_set_teammate_behavior(mode)
+            }
+
+            "sell_set_price" => {
+                let rarity = action_params
+                    .sell_rarity
+                    .clone()
+                    .ok_or_else(|| "Missing sell_rarity parameter".to_string())?;
+                let price = action_params
+                    .sell_price
+                    .ok_or_else(|| "Missing sell_price parameter".to_string())?;
+                game_state.handle_sell_set_price(rarity, price)
+            }
+
+            "sell_remove_price" => {
+                let rarity = action_params
+                    .sell_rarity
+                    .clone()
+                    .ok_or_else(|| "Missing sell_rarity parameter".to_string())?;
+                game_state.handle_sell_remove_price(&rarity)
             }
 
             _ => Err(format!("Unknown director action type: {}", action_type)),
