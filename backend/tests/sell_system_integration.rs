@@ -508,3 +508,21 @@ fn sell_pair_with_missing_item_rejected() {
     );
     assert!((state.players.get("p1").unwrap().coins - 0.0).abs() < 1e-9);
 }
+
+#[test]
+fn sell_duplicate_item_id_rejected() {
+    let mut state = build_sell_game_state();
+    sell_add_player(&mut state, "p1", "玩家一");
+    sell_configure(&mut state, "common", 1.5);
+    sell_put_weapon(&mut state, "p1", "w1", Some("common"));
+    sell_set_night_window(&mut state, 3600, 7200);
+
+    let results = state
+        .handle_sell_item_action("p1", &["w1".to_string(), "w1".to_string()])
+        .unwrap();
+    assert_eq!(results.results[0].message_type, MessageType::Info);
+    assert!(results.results[0].log_message.contains("不能重复选择同一件物品"));
+    let p = state.players.get("p1").unwrap();
+    assert_eq!(p.inventory.len(), 1, "零状态变更");
+    assert!((p.coins - 0.0).abs() < 1e-9);
+}

@@ -1066,6 +1066,13 @@ impl GameState {
             ));
         }
 
+        if item_ids.len() == 2 && item_ids[0] == item_ids[1] {
+            return Ok(info_message(
+                "不能重复选择同一件物品".to_string(),
+                player_id,
+            ));
+        }
+
         // 3. 逐件校验：在背包、武器/防具、稀有度有价
         let mut items = Vec::new();
         for id in item_ids {
