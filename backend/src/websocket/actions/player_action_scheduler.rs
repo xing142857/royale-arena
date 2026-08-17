@@ -18,6 +18,9 @@ pub struct ActionParams {
     /// 道具ID
     pub item_id: Option<String>,
 
+    /// 道具ID列表（售出等多件行动）
+    pub item_ids: Option<Vec<String>>,
+
     /// 装备槽位类型
     pub slot_type: Option<String>,
 
@@ -352,12 +355,12 @@ impl PlayerActionScheduler {
                         ValidationType::NotBound,
                     ]
                 );
-                let item_id = action_params
-                    .item_id
+                let item_ids = action_params
+                    .item_ids
                     .clone()
-                    .ok_or("Missing item_id parameter".to_string())?;
+                    .ok_or("Missing item_ids parameter".to_string())?;
                 game_state.end_rest_mode_for_action(player_id);
-                return game_state.handle_sell_item_action(player_id, &item_id);
+                return game_state.handle_sell_item_action(player_id, &item_ids);
             }
             "send" => {
                 let message = action_params

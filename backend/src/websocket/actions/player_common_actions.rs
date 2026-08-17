@@ -1023,11 +1023,11 @@ impl GameState {
         })
     }
 
-    /// 处理售出行动：白天按稀有度价格出售背包中的武器/防具
+    /// 处理售出行动：白天按稀有度价格出售背包中的武器/防具（绿色需成对）
     pub fn handle_sell_item_action(
         &mut self,
         player_id: &str,
-        item_id: &str,
+        item_ids: &[String],
     ) -> Result<ActionResults, String> {
         let info_message = |message: String, sender: &str| -> ActionResults {
             ActionResult::new_info_message(
@@ -1058,68 +1058,106 @@ impl GameState {
             }
         }
 
-        // 2. 道具必须在背包（已装备道具不在 inventory，天然排除）
-        let Some(item) = self
-            .players
-            .get(player_id)
-            .ok_or("Player not found")?
-            .inventory
-            .iter()
-            .find(|i| i.id == item_id)
-            .cloned()
-        else {
-            return Ok(info_message("物品不在背包中".to_string(), player_id));
-        };
-
-        // 3. 只有武器和防具可售
-        if !crate::game::game_rule_engine::Item::is_weapon_or_armor(&item) {
-            return Ok(info_message("只有武器和防具可以售出".to_string(), player_id));
+        // 2. 数量：1 件非绿色或 2 件绿色
+        if item_ids.is_empty() || item_ids.len() > 2 {
+            return Ok(info_message(
+                "一次只能售出 1 件非绿色物品或 2 件绿色物品".to_string(),
+                player_id,
+            ));
         }
 
-        // 4. 稀有度已配置价格
-        let Some(rarity) = item.rarity.as_deref() else {
-            return Ok(info_message(
-                "该道具稀有度未开放售出".to_string(),
-                player_id,
-            ));
-        };
-        let Some(entry) = self.sell_prices.iter().find(|e| e.rarity == rarity) else {
-            return Ok(info_message(
-                "该道具稀有度未开放售出".to_string(),
-                player_id,
-            ));
-        };
-        let price = entry.price;
+        // 3. 逐件校验：在背包、武器/防具、稀有度有价
+        let mut items = Vec::new();
+        for id in item_ids {
+            let Some(item) = self
+                .players
+                .get(player_id)
+                .ok_or("Player not found")?
+                .inventory
+                .iter()
+                .find(|i| i.id == *id)
+                .cloned()
+            else {
+                return Ok(info_message(format!("物品 {} 不在背包中", id), player_id));
+            };
+            if !crate::game::game_rule_engine::Item::is_weapon_or_armor(&item) {
+                return Ok(info_message("只有武器和防具可以售出".to_string(), player_id));
+            }
+            let Some(rarity) = item.rarity.as_deref() else {
+                return Ok(info_message(
+                    "该道具稀有度未开放售出".to_string(),
+                    player_id,
+                ));
+            };
+            if !self.sell_prices.iter().any(|e| e.rarity == rarity) {
+                return Ok(info_message(
+                    "该道具稀有度未开放售出".to_string(),
+                    player_id,
+                ));
+            }
+            items.push(item);
+        }
 
-        // 应用：移除道具、加货币
+        // 4. 配对约束：1 件不得为绿；2 件必须全绿
+        let is_green =
+            |i: &crate::game::game_rule_engine::Item| i.rarity.as_deref() == Some("common");
+        if items.len() == 1 && is_green(&items[0]) {
+            return Ok(info_message("绿色物品需成对售出".to_string(), player_id));
+        }
+        if items.len() == 2 && !items.iter().all(|i| is_green(i)) {
+            return Ok(info_message(
+                "绿色物品不能与其他稀有度混合售出".to_string(),
+                player_id,
+            ));
+        }
+
+        // 5. 原子应用：移除全部、累计入账
+        let total_price: f64 = items
+            .iter()
+            .map(|i| {
+                let rarity = i.rarity.as_deref().unwrap();
+                self.sell_prices
+                    .iter()
+                    .find(|e| e.rarity == rarity)
+                    .unwrap()
+                    .price
+            })
+            .sum();
         let player_name = self.players.get(player_id).unwrap().name.clone();
-        let item_name = item.name.clone();
-        let rarity_display = GameState::rarity_display_name(rarity).unwrap_or(rarity);
+        let item_names = items.iter().map(|i| i.name.clone()).collect::<Vec<_>>();
+        let names_str = item_names.join("、");
+        let rarity = items[0].rarity.clone().unwrap();
+        let rarity_display = GameState::rarity_display_name(&rarity)
+            .unwrap_or(rarity.as_str())
+            .to_string();
 
         {
             let player = self.players.get_mut(player_id).unwrap();
-            player.inventory.retain(|i| i.id != item_id);
-            player.coins += price;
+            player.inventory.retain(|i| !item_ids.contains(&i.id));
+            player.coins += total_price;
         }
         let coins_after = self.players.get(player_id).unwrap().coins;
 
-        let price_str = GameState::format_price(price);
-        let seller_msg = format!("你售出了 {}，获得 {} 货币", item_name, price_str);
+        let price_str = GameState::format_price(total_price);
+        let seller_msg = format!("你售出了 {}，获得 {} 货币", names_str, price_str);
         let director_msg = format!(
             "玩家 {} 售出了 {}（{}类），获得 {} 货币",
-            player_name, item_name, rarity_display, price_str
+            player_name, names_str, rarity_display, price_str
         );
 
         let seller_data = serde_json::json!({
-            "item_name": item_name,
-            "price": price,
+            "item_names": item_names,
+            "price": total_price,
             "coins": coins_after,
         });
         let director_data = serde_json::json!({
-            "item_name": item_name,
+            "item_names": item_names,
             "player": player_name,
-            "rarity": rarity,
-            "price": price,
+            "items": items
+                .iter()
+                .map(|i| serde_json::json!({ "name": i.name, "rarity": i.rarity }))
+                .collect::<Vec<_>>(),
+            "price": total_price,
         });
 
         Ok(ActionResults {

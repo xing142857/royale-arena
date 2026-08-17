@@ -152,6 +152,7 @@ fn empty_action_params() -> ActionParams {
         target_place: None,
         place_name: None,
         item_id: None,
+        item_ids: None,
         slot_type: None,
         target_player_id: None,
         target_player_ids: None,
