@@ -81,6 +81,17 @@ fn default_quantity() -> i32 {
     1
 }
 
+/// 售出系统稀有度价格条目
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct SellPriceEntry {
+    /// 条目唯一ID
+    pub id: String,
+    /// 稀有度：common | rare | epic | legendary
+    pub rarity: String,
+    /// 售出价格（货币数，0.5 步长）
+    pub price: f64,
+}
+
 /// 玩家购买请求项
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ShopBuyItem {
@@ -129,6 +140,9 @@ pub struct GameState {
     /// 商店上架物品列表
     #[serde(default)]
     pub shop: Vec<ShopListing>,
+    /// 售出系统：稀有度 → 价格（同一稀有度最多一条）
+    #[serde(default)]
+    pub sell_prices: Vec<SellPriceEntry>,
 }
 
 /// 玩家类
@@ -177,7 +191,7 @@ pub struct Player {
     pub bleed_inflictor: Option<String>,
     /// 货币总数
     #[serde(default)]
-    pub coins: i32,
+    pub coins: f64,
 }
 
 impl Player {
@@ -213,7 +227,7 @@ impl Player {
             team_id: Some(team_id),
             bleed_damage: 0,
             bleed_inflictor: None,
-            coins: 0,
+            coins: 0.0,
         }
     }
 
@@ -478,6 +492,7 @@ impl GameState {
             next_night_destroyed_places: Vec::new(),
             save_time: None,
             shop: Vec::new(),
+            sell_prices: Vec::new(),
         }
     }
 
@@ -519,6 +534,8 @@ impl<'de> Deserialize<'de> for GameState {
             save_time: Option<DateTime<Utc>>,
             #[serde(default)]
             shop: Vec<ShopListing>,
+            #[serde(default)]
+            sell_prices: Vec<SellPriceEntry>,
         }
 
         let helper = GameStateHelper::deserialize(deserializer)?;
@@ -542,6 +559,7 @@ impl<'de> Deserialize<'de> for GameState {
             next_night_destroyed_places: helper.next_night_destroyed_places,
             save_time: helper.save_time,
             shop: helper.shop,
+            sell_prices: helper.sell_prices,
         })
     }
 }

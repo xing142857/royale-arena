@@ -279,10 +279,7 @@ impl GameState {
     ) -> Result<ItemUseOutcome, String> {
         {
             let player = self.players.get_mut(player_id).unwrap();
-            player.coins = player
-                .coins
-                .checked_add(properties.value)
-                .ok_or_else(|| format!("使用 {} 会导致货币总数溢出", item_display_name))?;
+            player.coins += properties.value as f64;
         }
 
         let coins_after = self.players.get(player_id).unwrap().coins;

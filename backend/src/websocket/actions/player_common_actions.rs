@@ -758,7 +758,7 @@ impl GameState {
 
         // 检查玩家货币是否足够
         let player = self.players.get(player_id).ok_or("Player not found")?;
-        if player.coins < total_cost {
+        if player.coins < total_cost as f64 {
             let data = serde_json::json!({});
             return Ok(ActionResult::new_info_message(
                 data,
@@ -814,10 +814,7 @@ impl GameState {
         player.inventory.extend(created_items);
 
         // 扣除货币
-        player.coins = player
-            .coins
-            .checked_sub(total_cost)
-            .expect("validated shop purchase should not underflow player coins");
+        player.coins -= total_cost as f64;
 
         // 扣减库存或移除售罄商品
         for (listing_id, _, _, buy_qty) in &purchase_plan {

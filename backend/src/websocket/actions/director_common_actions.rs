@@ -1,6 +1,6 @@
 //! GameState 导演控制实现
 
-use crate::websocket::actions::utils::format_delta;
+use crate::websocket::actions::utils::{format_delta, format_delta_f64};
 use crate::websocket::models::{
     ActionResult, ActionResults, AirdropItem, GameState, ItemDeletionItem, ShopListing,
 };
@@ -411,7 +411,7 @@ impl GameState {
     pub fn handle_set_player_coins(
         &mut self,
         player_id: &str,
-        coins: i32,
+        coins: f64,
     ) -> Result<ActionResults, String> {
         let (player_name, final_coins, coins_change) = {
             let player = self.players.get_mut(player_id).ok_or("Player not found")?;
@@ -454,7 +454,7 @@ impl GameState {
                 "导演设置 {} 货币为 {} ({})",
                 player_name,
                 final_coins,
-                format_delta(coins_change)
+                format_delta_f64(coins_change)
             ),
             true,
         );
