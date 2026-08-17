@@ -189,6 +189,14 @@
               </template>
             </div>
           </el-popover>
+          <el-button
+            type="warning"
+            size="small"
+            :disabled="!sellAvailable"
+            @click="sellDialogVisible = true"
+          >
+            售出
+          </el-button>
         </div>
         <div class="rest-status-chip rest-desktop" :class="restStatusClass">
           <span class="rest-status-text">{{ restStatusLabel }}</span>
@@ -286,6 +294,8 @@
       </div>
     </div>
   </div>
+
+  <SellItemDialog v-model="sellDialogVisible" :inventory="props.player.inventory" />
 </template>
 
 <script setup lang="ts">
@@ -294,6 +304,7 @@ import { storeToRefs } from 'pinia'
 import type { Player, ActorPlayer,ActorPlace, GlobalState, ShopListing, ShopBuyItem } from '@/types/gameStateTypes'
 import { calculatePlayerVotes } from '@/utils/playerUtils'
 import { useGameStateStore } from '@/stores/gameState'
+import SellItemDialog from './SellItemDialog.vue'
 
 const props = withDefaults(defineProps<{
   player: Player
@@ -507,6 +518,20 @@ const nightActionActive = computed(() => {
 const actionsDisabled = computed(() => {
   return !nightActionActive.value || props.player.is_bound
 })
+
+const nightTimesSet = computed(
+  () => nightStartMs.value !== null && nightEndMs.value !== null
+)
+
+const sellAvailable = computed(
+  () =>
+    nightTimesSet.value &&
+    !nightActionActive.value &&
+    !props.player.is_bound &&
+    props.player.is_alive
+)
+
+const sellDialogVisible = ref(false)
 
 const nightCountdownMessage = computed(() => {
   if (!nightStartMs.value) {
