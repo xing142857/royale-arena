@@ -3,7 +3,7 @@
 use chrono::{Duration, Utc};
 use royale_arena_backend::game::game_rule_engine::GameRuleEngine;
 use royale_arena_backend::websocket::models::GameState;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 const SELL_RULES: &str = r#"{
     "map": { "places": ["码头"], "safe_places": [] },
@@ -170,4 +170,173 @@ fn sell_remove_price_works() {
     )
     .unwrap();
     assert_eq!(results.results[0].message_type, MessageType::Info);
+}
+
+use royale_arena_backend::game::game_rule_engine::{
+    ArmorProperties, CurrencyProperties, Item, ItemType, WeaponProperties,
+};
+
+fn sell_put_weapon(state: &mut GameState, player_id: &str, item_id: &str, rarity: Option<&str>) {
+    let item = Item {
+        id: item_id.to_string(),
+        name: format!("[W]{}", item_id),
+        internal_name: Some("test_weapon".to_string()),
+        rarity: rarity.map(|r| r.to_string()),
+        item_type: ItemType::Weapon(WeaponProperties {
+            damage: 5,
+            votes: 1,
+            uses: None,
+            aoe_damage: None,
+            bleed_damage: None,
+        }),
+    };
+    state
+        .players
+        .get_mut(player_id)
+        .unwrap()
+        .inventory
+        .push(item);
+}
+
+fn sell_put_armor(state: &mut GameState, player_id: &str, item_id: &str, rarity: Option<&str>) {
+    let item = Item {
+        id: item_id.to_string(),
+        name: format!("[A]{}", item_id),
+        internal_name: Some("test_armor".to_string()),
+        rarity: rarity.map(|r| r.to_string()),
+        item_type: ItemType::Armor(ArmorProperties {
+            defense: 5,
+            votes: 1,
+            uses: None,
+        }),
+    };
+    state
+        .players
+        .get_mut(player_id)
+        .unwrap()
+        .inventory
+        .push(item);
+}
+
+fn sell_configure(state: &mut GameState, rarity: &str, price: f64) {
+    state
+        .handle_sell_set_price(rarity.to_string(), price)
+        .unwrap();
+}
+
+#[test]
+fn sell_item_succeeds_in_daytime() {
+    let mut state = build_sell_game_state();
+    sell_add_player(&mut state, "p1", "玩家一");
+    sell_configure(&mut state, "common", 2.5);
+    sell_put_weapon(&mut state, "p1", "w1", Some("common"));
+    // 夜窗设在未来 → 当前是白天
+    sell_set_night_window(&mut state, 3600, 7200);
+
+    let results = state.handle_sell_item_action("p1", "w1").expect("sell ok");
+    let p = state.players.get("p1").unwrap();
+    assert!(p.inventory.iter().all(|i| i.id != "w1"), "道具已移除");
+    assert!((p.coins - 2.5).abs() < 1e-9, "货币 +2.5，实际 {}", p.coins);
+    assert_eq!(results.results.len(), 2, "发起方 + 导演专属");
+    assert_eq!(results.results[0].message_type, MessageType::SystemNotice);
+    assert_eq!(results.results[0].broadcast_players, vec!["p1".to_string()]);
+    assert!(!results.results[0].broadcast_to_director);
+    let director_msg = &results.results[1];
+    assert!(director_msg.broadcast_players.is_empty());
+    assert!(director_msg.broadcast_to_director);
+    assert!(director_msg.log_message.contains("玩家一"));
+    assert!(director_msg.log_message.contains("绿"));
+    assert!(director_msg.log_message.contains("2.5"));
+}
+
+#[test]
+fn sell_item_rejected_at_night() {
+    let mut state = build_sell_game_state();
+    sell_add_player(&mut state, "p1", "玩家一");
+    sell_configure(&mut state, "common", 1.0);
+    sell_put_weapon(&mut state, "p1", "w1", Some("common"));
+    sell_set_night_window(&mut state, -3600, 3600); // 当前在夜内
+    let results = state.handle_sell_item_action("p1", "w1").unwrap();
+    assert_eq!(results.results[0].message_type, MessageType::Info);
+    assert!(results.results[0].log_message.contains("非夜间"));
+    assert_eq!(state.players["p1"].inventory.len(), 1, "道具保留");
+}
+
+#[test]
+fn sell_item_rejected_when_night_unset() {
+    let mut state = build_sell_game_state();
+    sell_add_player(&mut state, "p1", "玩家一");
+    sell_configure(&mut state, "common", 1.0);
+    sell_put_weapon(&mut state, "p1", "w1", Some("common"));
+    let results = state.handle_sell_item_action("p1", "w1").unwrap();
+    assert_eq!(results.results[0].message_type, MessageType::Info);
+    assert!(results.results[0].log_message.contains("尚未设置夜晚"));
+}
+
+#[test]
+fn sell_item_rejects_non_weapon_armor_and_unconfigured_rarity_and_missing_item() {
+    let mut state = build_sell_game_state();
+    sell_add_player(&mut state, "p1", "玩家一");
+    sell_configure(&mut state, "common", 1.0);
+    sell_set_night_window(&mut state, 3600, 7200);
+    // 未配置稀有度
+    sell_put_armor(&mut state, "p1", "a1", Some("epic"));
+    let r = state.handle_sell_item_action("p1", "a1").unwrap();
+    assert_eq!(r.results[0].message_type, MessageType::Info);
+    assert!(r.results[0].log_message.contains("未开放售出"));
+    // rarity 为 None
+    sell_put_weapon(&mut state, "p1", "w2", None);
+    let r = state.handle_sell_item_action("p1", "w2").unwrap();
+    assert_eq!(r.results[0].message_type, MessageType::Info);
+    assert!(r.results[0].log_message.contains("未开放售出"));
+    // 不在背包
+    let r = state.handle_sell_item_action("p1", "nope").unwrap();
+    assert_eq!(r.results[0].message_type, MessageType::Info);
+    assert!(r.results[0].log_message.contains("不在背包"));
+    // 仅存在于 equipped_weapon（不在 inventory）的道具不可售
+    let mut w = state.players.get("p1").unwrap().inventory[1].clone();
+    w.id = "equipped_only".to_string();
+    state.players.get_mut("p1").unwrap().equipped_weapon = Some(w);
+    let r = state.handle_sell_item_action("p1", "equipped_only").unwrap();
+    assert_eq!(r.results[0].message_type, MessageType::Info);
+    assert!(r.results[0].log_message.contains("不在背包"));
+    assert_eq!(state.players["p1"].inventory.len(), 2, "无状态变更");
+}
+
+#[test]
+fn sell_item_rejects_non_weapon_types() {
+    let mut state = build_sell_game_state();
+    sell_add_player(&mut state, "p1", "玩家一");
+    sell_configure(&mut state, "common", 1.0);
+    // 用货币道具（ItemType::Currency）验证非武器/防具被拒
+    let item = Item {
+        id: "c1".to_string(),
+        name: "金币".to_string(),
+        internal_name: Some("gold_coin".to_string()),
+        rarity: Some("common".to_string()),
+        item_type: ItemType::Currency(CurrencyProperties { value: 1 }),
+    };
+    state.players.get_mut("p1").unwrap().inventory.push(item);
+    sell_set_night_window(&mut state, 3600, 7200);
+    let r = state.handle_sell_item_action("p1", "c1").unwrap();
+    assert_eq!(r.results[0].message_type, MessageType::Info);
+    assert!(r.results[0].log_message.contains("武器和防具"));
+}
+
+#[test]
+fn sell_item_via_scheduler_dispatch() {
+    let mut state = build_sell_game_state();
+    sell_add_player(&mut state, "p1", "玩家一");
+    state.players.get_mut("p1").unwrap().location = "码头".to_string(); // 通过 Born 校验
+    sell_configure(&mut state, "common", 0.5);
+    sell_put_weapon(&mut state, "p1", "w1", Some("common"));
+    sell_set_night_window(&mut state, 3600, 7200);
+    use royale_arena_backend::websocket::actions::player_action_scheduler::{
+        ActionParams, PlayerActionScheduler,
+    };
+    let params = ActionParams::from_json(&json!({ "item_id": "w1" })).unwrap();
+    let results =
+        PlayerActionScheduler::dispatch(&mut state, "p1", "sell_item", params).expect("dispatch ok");
+    assert!((state.players["p1"].coins - 0.5).abs() < 1e-9);
+    assert_eq!(results.results.len(), 2);
 }

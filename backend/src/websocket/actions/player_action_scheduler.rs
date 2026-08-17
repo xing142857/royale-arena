@@ -342,6 +342,23 @@ impl PlayerActionScheduler {
                     .ok_or("Missing shop_buy_items parameter")?;
                 return game_state.handle_shop_buy_action(player_id, buy_items);
             }
+            "sell_item" => {
+                validate_or_return!(
+                    game_state,
+                    player_id,
+                    vec![
+                        ValidationType::Alive,
+                        ValidationType::Born,
+                        ValidationType::NotBound,
+                    ]
+                );
+                let item_id = action_params
+                    .item_id
+                    .clone()
+                    .ok_or("Missing item_id parameter".to_string())?;
+                game_state.end_rest_mode_for_action(player_id);
+                return game_state.handle_sell_item_action(player_id, &item_id);
+            }
             "send" => {
                 let message = action_params
                     .message

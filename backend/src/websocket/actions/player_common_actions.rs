@@ -976,4 +976,116 @@ impl GameState {
             ],
         })
     }
+
+    /// 处理售出行动：白天按稀有度价格出售背包中的武器/防具
+    pub fn handle_sell_item_action(
+        &mut self,
+        player_id: &str,
+        item_id: &str,
+    ) -> Result<ActionResults, String> {
+        let info_message = |message: String, sender: &str| -> ActionResults {
+            ActionResult::new_info_message(
+                serde_json::json!({}),
+                vec![sender.to_string()],
+                message,
+                false,
+            )
+            .as_results()
+        };
+
+        // 1. 时间窗：夜窗已设置且当前不在夜间才可售出
+        match (self.night_start_time, self.night_end_time) {
+            (Some(start_time), Some(end_time)) => {
+                let now = chrono::Utc::now();
+                if now >= start_time && now <= end_time {
+                    return Ok(info_message(
+                        "售出只在非夜间行动时间可用".to_string(),
+                        player_id,
+                    ));
+                }
+            }
+            _ => {
+                return Ok(info_message(
+                    "导演尚未设置夜晚行动时间，无法售出".to_string(),
+                    player_id,
+                ));
+            }
+        }
+
+        // 2. 道具必须在背包（已装备道具不在 inventory，天然排除）
+        let Some(item) = self
+            .players
+            .get(player_id)
+            .ok_or("Player not found")?
+            .inventory
+            .iter()
+            .find(|i| i.id == item_id)
+            .cloned()
+        else {
+            return Ok(info_message("物品不在背包中".to_string(), player_id));
+        };
+
+        // 3. 只有武器和防具可售
+        if !crate::game::game_rule_engine::Item::is_weapon_or_armor(&item) {
+            return Ok(info_message("只有武器和防具可以售出".to_string(), player_id));
+        }
+
+        // 4. 稀有度已配置价格
+        let Some(rarity) = item.rarity.as_deref() else {
+            return Ok(info_message(
+                "该道具稀有度未开放售出".to_string(),
+                player_id,
+            ));
+        };
+        let Some(entry) = self.sell_prices.iter().find(|e| e.rarity == rarity) else {
+            return Ok(info_message(
+                "该道具稀有度未开放售出".to_string(),
+                player_id,
+            ));
+        };
+        let price = entry.price;
+
+        // 应用：移除道具、加货币
+        let player_name = self.players.get(player_id).unwrap().name.clone();
+        let item_name = item.name.clone();
+        let rarity_display = GameState::rarity_display_name(rarity).unwrap_or(rarity);
+
+        {
+            let player = self.players.get_mut(player_id).unwrap();
+            player.inventory.retain(|i| i.id != item_id);
+            player.coins += price;
+        }
+        let coins_after = self.players.get(player_id).unwrap().coins;
+
+        let price_str = GameState::format_price(price);
+        let seller_msg = format!("你售出了 {}，获得 {} 货币", item_name, price_str);
+        let director_msg = format!(
+            "玩家 {} 售出了 {}（{}类），获得 {} 货币",
+            player_name, item_name, rarity_display, price_str
+        );
+
+        let seller_data = serde_json::json!({
+            "item_name": item_name,
+            "price": price,
+            "coins": coins_after,
+        });
+        let director_data = serde_json::json!({
+            "item_name": item_name,
+            "player": player_name,
+            "rarity": rarity,
+            "price": price,
+        });
+
+        Ok(ActionResults {
+            results: vec![
+                ActionResult::new_system_message(
+                    seller_data,
+                    vec![player_id.to_string()],
+                    seller_msg,
+                    false,
+                ),
+                ActionResult::new_system_message(director_data, vec![], director_msg, true),
+            ],
+        })
+    }
 }
