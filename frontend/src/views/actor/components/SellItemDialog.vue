@@ -71,6 +71,7 @@ const validationError = computed(() => {
     return '绿色物品需成对售出，请再勾选 1 件绿色物品'
   if (greens.length >= 1 && others.length >= 1) return '绿色物品不能与其他稀有度混合售出'
   if (others.length >= 2) return '非绿色物品一次只能售出 1 件'
+  if (greens.length > 2) return '绿色物品一次只能售出 2 件'
   return ''
 })
 
