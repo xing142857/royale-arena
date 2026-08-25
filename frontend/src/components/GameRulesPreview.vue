@@ -280,6 +280,24 @@
                   </el-table>
                 </div>
               </el-tab-pane>
+
+              <el-tab-pane label="永久增益" name="permanent_buffs">
+                <div class="table-wrapper">
+                  <el-table :data="parsedRules.itemsConfig.items.permanentBuffs" style="width: 100%">
+                    <el-table-column prop="name" label="名称" />
+                    <el-table-column label="效果类型">
+                      <template #default="scope">
+                        {{ ({ max_life: '生命上限', max_strength: '体力上限', max_backpack: '背包容量' } as Record<string, string>)[scope.row.properties.effectType] || scope.row.properties.effectType }}
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="效果值">
+                      <template #default="scope">
+                        {{ scope.row.properties.effectValue }}
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </div>
+              </el-tab-pane>
             </el-tabs>
           </div>
         </el-collapse-item>

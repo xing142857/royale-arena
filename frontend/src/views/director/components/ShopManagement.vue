@@ -158,6 +158,9 @@ const itemGroups = computed<ItemGroup[]>(() => {
   if (p.currencies.length > 0) {
     groups.push({ label: '货币', items: p.currencies })
   }
+  if (p.permanentBuffs.length > 0) {
+    groups.push({ label: '永久增益', items: p.permanentBuffs })
+  }
   if (p.upgraders.length > 0) {
     groups.push({ label: '升级器', items: p.upgraders })
   }
