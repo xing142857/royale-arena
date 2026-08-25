@@ -195,6 +195,9 @@ pub struct Player {
     /// 附加流血的玩家ID
     #[serde(default)]
     pub bleed_inflictor: Option<String>,
+    /// 背包容量上限（初始来自规则，可被永久增益道具提升）
+    #[serde(default)]
+    pub max_backpack_items: usize,
     /// 货币总数
     #[serde(default)]
     pub coins: f64,
@@ -211,6 +214,7 @@ impl Player {
     ) -> Self {
         let max_life = rule_engine.player_config.max_life;
         let max_strength = rule_engine.player_config.max_strength;
+        let max_backpack_items = rule_engine.player_config.max_backpack_items;
 
         Self {
             id,
@@ -221,6 +225,7 @@ impl Player {
             strength: max_strength,
             max_life,
             max_strength,
+            max_backpack_items,
             inventory: Vec::new(),
             equipped_weapon: None,
             equipped_armor: None,
@@ -552,9 +557,18 @@ impl<'de> Deserialize<'de> for GameState {
         let rule_engine =
             GameRuleEngine::from_json(&rules_json).map_err(serde::de::Error::custom)?;
 
+        // 旧存档玩家没有 max_backpack_items 字段（serde default 为 0），回填为规则初始值
+        let mut players = helper.players;
+        let default_backpack = rule_engine.player_config.max_backpack_items;
+        for player in players.values_mut() {
+            if player.max_backpack_items == 0 {
+                player.max_backpack_items = default_backpack;
+            }
+        }
+
         Ok(GameState {
             game_id: helper.game_id,
-            players: helper.players,
+            players,
             places: helper.places,
             weather: helper.weather,
             votes: helper.votes,

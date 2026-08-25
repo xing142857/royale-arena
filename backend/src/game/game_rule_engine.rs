@@ -124,11 +124,27 @@ pub struct MapConfig {
 pub struct PlayerConfig {
     pub max_life: i32,
     pub max_strength: i32,
+    #[serde(default = "default_max_life_cap")]
+    pub max_life_cap: i32,
+    #[serde(default = "default_max_strength_cap")]
+    pub max_strength_cap: i32,
     pub daily_life_recovery: i32,
     pub daily_strength_recovery: i32,
     pub search_cooldown: i64,
     pub max_backpack_items: usize,
+    #[serde(default = "default_max_backpack_items_cap")]
+    pub max_backpack_items_cap: usize,
     pub unarmed_damage: i32, // 挥拳伤害
+}
+
+fn default_max_life_cap() -> i32 {
+    300
+}
+fn default_max_strength_cap() -> i32 {
+    300
+}
+fn default_max_backpack_items_cap() -> usize {
+    12
 }
 
 /// 行动消耗配置结构体
