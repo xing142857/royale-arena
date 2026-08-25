@@ -97,6 +97,7 @@ pub enum ItemType {
     Utility(UtilityProperties),
     Upgrader,
     Currency(CurrencyProperties),
+    PermanentBuff(PermanentBuffProperties),
 }
 
 /// 游戏规则引擎
@@ -208,6 +209,8 @@ pub struct ItemsByCategory {
     pub upgraders: Vec<UpgraderConfig>,
     #[serde(default)]
     pub currencies: Vec<CurrencyConfig>,
+    #[serde(default)]
+    pub permanent_buffs: Vec<PermanentBuffConfig>,
 }
 
 /// 稀有度等级配置
@@ -290,6 +293,24 @@ pub struct ConsumableProperties {
     pub effect_value: i32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cure_bleed: Option<i32>,
+}
+
+/// 永久增益属性
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PermanentBuffProperties {
+    pub effect_type: String,
+    pub effect_value: i32,
+}
+
+/// 永久增益配置
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PermanentBuffConfig {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub internal_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rarity: Option<String>,
+    pub properties: PermanentBuffProperties,
 }
 
 /// 货币属性
@@ -506,6 +527,18 @@ impl GameRuleEngine {
                     currency.internal_name.clone(),
                     currency.rarity.clone(),
                     ItemType::Currency(currency.properties.clone()),
+                ));
+            }
+        }
+
+        // 7. 搜索永久增益道具
+        for buff in &self.items_config.items.permanent_buffs {
+            if buff.name == item_name {
+                return Ok(Item::new(
+                    buff.name.clone(),
+                    buff.internal_name.clone(),
+                    buff.rarity.clone(),
+                    ItemType::PermanentBuff(buff.properties.clone()),
                 ));
             }
         }
