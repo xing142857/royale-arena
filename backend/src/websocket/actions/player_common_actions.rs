@@ -194,9 +194,8 @@ impl GameState {
         // 使用规则引擎检查背包容量（使用总物品数量）
         {
             let player = self.players.get(player_id).unwrap();
-            let max_backpack_items = self.rule_engine.player_config.max_backpack_items as usize;
 
-            if player.get_total_item_count() >= max_backpack_items {
+            if player.get_total_item_count() >= player.max_backpack_items {
                 // 背包已满，返回Info提示
                 let action_result = ActionResult::new_info_message(
                     serde_json::json!({}),
@@ -774,7 +773,7 @@ impl GameState {
         }
 
         // 检查背包空间
-        let max_inventory_size = self.rule_engine.player_config.max_backpack_items as usize;
+        let max_inventory_size = player.max_backpack_items;
         let current_items = player.get_total_item_count();
         if current_items + total_items > max_inventory_size {
             let data = serde_json::json!({});
@@ -950,12 +949,9 @@ impl GameState {
             return Ok(info_message("对方体力不足，无法接收".to_string(), sender_id));
         }
         // 6. 接收方背包未满
-        let max = self.rule_engine.player_config.max_backpack_items as usize;
-        let target_count = self
-            .players
-            .get(target_player_id)
-            .map(|p| p.get_total_item_count())
-            .unwrap_or(0);
+        let target = self.players.get(target_player_id);
+        let max = target.map(|p| p.max_backpack_items).unwrap_or(0);
+        let target_count = target.map(|p| p.get_total_item_count()).unwrap_or(0);
         if target_count >= max {
             return Ok(info_message("对方背包已满，无法接收".to_string(), sender_id));
         }

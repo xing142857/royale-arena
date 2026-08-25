@@ -500,11 +500,11 @@ impl PlayerActionScheduler {
     /// 验证背包有空闲空间（从玩家引用）
     fn check_inventory_space_from_ref(
         player: &Player,
-        game_state: &GameState,
+        _game_state: &GameState,
         player_id: &str,
     ) -> Result<(), ActionResults> {
         // 获取背包最大容量
-        let max_inventory_size = game_state.rule_engine.player_config.max_backpack_items as usize;
+        let max_inventory_size = player.max_backpack_items;
 
         // 检查当前物品总数（包括装备）
         let total_items = player.get_total_item_count();

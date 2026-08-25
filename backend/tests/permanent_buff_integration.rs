@@ -124,7 +124,6 @@ fn empty_action_params() -> ActionParams {
 }
 
 /// 把玩家上一次搜索结果指向地点中最后一个物品（供拾取测试使用）
-#[allow(dead_code)]
 fn set_search_result_to_last_place_item(
     game_state: &mut GameState,
     player_id: &str,
@@ -315,4 +314,59 @@ fn test_unknown_effect_type_reinserts_item() {
     assert_eq!(player.inventory[0].id, item_id);
     assert_eq!(player.strength, 100);
     assert_eq!(results.results.len(), 1);
+}
+
+/// 测试：背包扩容后可继续拾取（拾取容量检查使用玩家字段而非全局规则）
+#[test]
+fn test_backpack_expansion_allows_more_picks() {
+    let mut state = GameState::new("g1".to_string(), get_test_rules_with_permanent_buffs());
+    add_test_player(&mut state, "p1", "玩家1", "位置1");
+
+    // 背包先放一个扩容道具（占 1 格，基础容量 6）
+    let bag_id = give_item(&mut state, "p1", "[背包+6]百宝袋");
+    assert_eq!(state.players["p1"].get_total_item_count(), 1);
+
+    // 地点放 8 个物品
+    for _ in 0..8 {
+        let item = state.rule_engine.create_item_from_name("[HP上限+20]养生丸").unwrap();
+        state.places.get_mut("位置1").unwrap().items.push(item);
+    }
+
+    // 连续拾取 5 次：容量 6 已占 1，第 6 次提示背包已满
+    for _ in 0..5 {
+        set_search_result_to_last_place_item(&mut state, "p1", "位置1");
+        state.handle_pick_action("p1").expect("pick should succeed");
+    }
+    assert_eq!(state.players["p1"].get_total_item_count(), 6);
+
+    set_search_result_to_last_place_item(&mut state, "p1", "位置1");
+    state.handle_pick_action("p1").expect("pick returns info");
+    assert_eq!(state.players["p1"].get_total_item_count(), 6, "容量 6 时应拒绝拾取");
+
+    // 使用百宝袋：容量 12，道具销毁后背包 5 件
+    state
+        .handle_use_action("p1", &bag_id, &empty_action_params())
+        .expect("use bag");
+    assert_eq!(state.players["p1"].max_backpack_items, 12);
+    assert_eq!(state.players["p1"].get_total_item_count(), 5);
+
+    // 扩容后可继续拾取剩余 3 件（若容量检查仍读全局规则 6，第二件起会被拦截）
+    for _ in 0..3 {
+        set_search_result_to_last_place_item(&mut state, "p1", "位置1");
+        state.handle_pick_action("p1").expect("pick after expansion");
+    }
+    assert_eq!(state.players["p1"].get_total_item_count(), 8);
+}
+
+/// 测试：商店可按名称上架永久增益道具（现有"拒绝武器/防具"逻辑自动放行）
+#[test]
+fn test_shop_list_permanent_buff_by_name() {
+    let mut state = GameState::new("g1".to_string(), get_test_rules_with_permanent_buffs());
+    state
+        .handle_shop_list_item("[HP上限+20]养生丸".to_string(), 10, 2)
+        .expect("list should succeed");
+    assert_eq!(state.shop.len(), 1);
+    assert_eq!(state.shop[0].item_name, "[HP上限+20]养生丸");
+    assert_eq!(state.shop[0].price, 10);
+    assert_eq!(state.shop[0].quantity, 2);
 }

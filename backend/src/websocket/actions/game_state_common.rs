@@ -158,8 +158,7 @@ impl GameState {
                     DeathDisposition::KillerTakes => {
                         if let Some(loot_player_id) = loot_recipient_id {
                             if let Some(killer) = self.players.get_mut(loot_player_id) {
-                                let max_backpack =
-                                    self.rule_engine.player_config.max_backpack_items;
+                                let max_backpack = killer.max_backpack_items;
                                 let current_total = killer.get_total_item_count();
                                 let available_slots = max_backpack.saturating_sub(current_total);
                                 if available_slots > 0 {
