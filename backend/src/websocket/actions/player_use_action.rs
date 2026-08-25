@@ -303,14 +303,14 @@ impl GameState {
                 let cap = max_life_cap.max(base_max_life);
                 let player = self.players.get_mut(player_id).unwrap();
                 let before = player.max_life;
-                player.max_life = (player.max_life + effect.effect_value).min(cap);
+                player.max_life = (player.max_life + effect.effect_value.max(0)).min(cap);
                 ("生命上限", before, player.max_life)
             }
             "max_strength" => {
                 let cap = max_strength_cap.max(base_max_strength);
                 let player = self.players.get_mut(player_id).unwrap();
                 let before = player.max_strength;
-                player.max_strength = (player.max_strength + effect.effect_value).min(cap);
+                player.max_strength = (player.max_strength + effect.effect_value.max(0)).min(cap);
                 ("体力上限", before, player.max_strength)
             }
             "max_backpack" => {
