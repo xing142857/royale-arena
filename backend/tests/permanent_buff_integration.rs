@@ -41,6 +41,8 @@ fn get_test_rules_with_permanent_buffs() -> Value {
                     {"name": "[MP上限+50]行军丹", "properties": {"effect_type": "max_strength", "effect_value": 50}},
                     {"name": "[背包+2]腰包", "properties": {"effect_type": "max_backpack", "effect_value": 2}},
                     {"name": "[背包+6]百宝袋", "properties": {"effect_type": "max_backpack", "effect_value": 6}},
+                    {"name": "[HP上限-50]衰弱咒", "properties": {"effect_type": "max_life", "effect_value": -50}},
+                    {"name": "[背包-2]破损袋", "properties": {"effect_type": "max_backpack", "effect_value": -2}},
                     {"name": "[异常]无效丹", "properties": {"effect_type": "unknown_x", "effect_value": 10}}
                 ]
             },
@@ -296,6 +298,65 @@ fn test_cap_below_base_never_lowers_max() {
         .handle_use_action("p1", &item_id, &empty_action_params())
         .expect("use should succeed");
     assert_eq!(state.players["p1"].max_life, 100, "生效上限应为 max(50, 100) = 100");
+}
+
+/// 测试：负值道具降低生命上限，下限为规则基础值；当前生命压到新上限
+#[test]
+fn test_negative_buff_lowers_cap_with_base_floor() {
+    let mut state = GameState::new("g1".to_string(), rules_with_caps(300, 300, 12));
+    add_test_player(&mut state, "p1", "玩家1", "位置1");
+
+    // 先涨：100 → 200
+    let id_up = give_item(&mut state, "p1", "[HP上限+100]金钟罩");
+    state
+        .handle_use_action("p1", &id_up, &empty_action_params())
+        .expect("use should succeed");
+    assert_eq!(state.players["p1"].max_life, 200);
+
+    // 模拟治疗后生命超过基础值
+    state.players.get_mut("p1").unwrap().life = 180;
+
+    // -50：200 → 150，生命从 180 压到 150
+    let id_down = give_item(&mut state, "p1", "[HP上限-50]衰弱咒");
+    state
+        .handle_use_action("p1", &id_down, &empty_action_params())
+        .expect("use should succeed");
+    assert_eq!(state.players["p1"].max_life, 150);
+    assert_eq!(state.players["p1"].life, 150, "当前生命应压到新上限");
+
+    // 连续 -50：150 → 100（下限为规则基础值），生命同步压到 100，道具照常消耗
+    for _ in 0..2 {
+        let id = give_item(&mut state, "p1", "[HP上限-50]衰弱咒");
+        state
+            .handle_use_action("p1", &id, &empty_action_params())
+            .expect("use should succeed");
+    }
+    assert_eq!(state.players["p1"].max_life, 100, "下限应为规则基础值 100");
+    assert_eq!(state.players["p1"].life, 100);
+    assert!(state.players["p1"].inventory.is_empty());
+}
+
+/// 测试：负值背包道具降低容量，下限为规则基础值
+#[test]
+fn test_negative_backpack_buff_floors_at_base() {
+    let mut state = GameState::new("g1".to_string(), rules_with_caps(300, 300, 12));
+    add_test_player(&mut state, "p1", "玩家1", "位置1");
+
+    // 先扩：6 → 12（cap）
+    let id_up = give_item(&mut state, "p1", "[背包+6]百宝袋");
+    state
+        .handle_use_action("p1", &id_up, &empty_action_params())
+        .expect("use should succeed");
+    assert_eq!(state.players["p1"].max_backpack_items, 12);
+
+    // 连续 -2：12 → 10 → 8 → 6 → 6（下限为规则基础值）
+    for _ in 0..4 {
+        let id = give_item(&mut state, "p1", "[背包-2]破损袋");
+        state
+            .handle_use_action("p1", &id, &empty_action_params())
+            .expect("use should succeed");
+    }
+    assert_eq!(state.players["p1"].max_backpack_items, 6, "下限应为规则基础值 6");
 }
 
 /// 测试：未知 effect_type —— 报错提示、道具回插、不扣体力

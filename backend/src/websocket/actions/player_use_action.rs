@@ -303,22 +303,31 @@ impl GameState {
                 let cap = max_life_cap.max(base_max_life);
                 let player = self.players.get_mut(player_id).unwrap();
                 let before = player.max_life;
-                player.max_life = (player.max_life + effect.effect_value.max(0)).min(cap);
+                player.max_life = (player.max_life + effect.effect_value).clamp(base_max_life, cap);
+                // 降低上限时当前生命不超过新上限
+                if player.life > player.max_life {
+                    player.life = player.max_life;
+                }
                 ("生命上限", before, player.max_life)
             }
             "max_strength" => {
                 let cap = max_strength_cap.max(base_max_strength);
                 let player = self.players.get_mut(player_id).unwrap();
                 let before = player.max_strength;
-                player.max_strength = (player.max_strength + effect.effect_value.max(0)).min(cap);
+                player.max_strength =
+                    (player.max_strength + effect.effect_value).clamp(base_max_strength, cap);
+                // 降低上限时当前体力不超过新上限
+                if player.strength > player.max_strength {
+                    player.strength = player.max_strength;
+                }
                 ("体力上限", before, player.max_strength)
             }
             "max_backpack" => {
                 let cap = backpack_cap.max(base_backpack);
                 let player = self.players.get_mut(player_id).unwrap();
                 let before = player.max_backpack_items;
-                let boost = effect.effect_value.max(0) as usize;
-                player.max_backpack_items = (player.max_backpack_items + boost).min(cap);
+                let target = player.max_backpack_items as i32 + effect.effect_value;
+                player.max_backpack_items = target.clamp(base_backpack as i32, cap as i32) as usize;
                 ("背包容量", before as i32, player.max_backpack_items as i32)
             }
             _ => return Err(format!("永久增益道具 {} 没有定义效果", item_display_name)),

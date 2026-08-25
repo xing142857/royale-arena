@@ -151,7 +151,8 @@ export const getItemDisplayProperties = (item: Item): ItemDisplayProperty[] => {
         })
       }
       if (properties.effect_value != null) {
-        entries.push({ label: '效果', value: `+${properties.effect_value}` })
+        const effectValue = properties.effect_value
+        entries.push({ label: '效果', value: `${effectValue >= 0 ? '+' : ''}${effectValue}` })
       }
       break
   }

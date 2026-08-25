@@ -744,8 +744,8 @@ export class GameRuleParser {
 								if (typeof properties.effect_type !== 'string' || !['max_life', 'max_strength', 'max_backpack'].includes(properties.effect_type)) {
 									errors.push(`永久增益[${index}]效果类型必须为 max_life/max_strength/max_backpack`)
 								}
-								if (typeof properties.effect_value !== 'number' || !Number.isFinite(properties.effect_value) || properties.effect_value <= 0) {
-									errors.push(`永久增益[${index}]效果值必须是正数`)
+								if (typeof properties.effect_value !== 'number' || !Number.isFinite(properties.effect_value) || properties.effect_value === 0) {
+									errors.push(`永久增益[${index}]效果值必须是非零数字（负数表示降低上限）`)
 								}
 							}
 						})

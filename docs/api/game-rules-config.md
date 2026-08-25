@@ -125,12 +125,13 @@
 - `internal_name`: 可选，道具的内部名称
 - `rarity`: 可选，道具的稀有度
 - `properties.effect_type`: `max_life`（生命上限）/ `max_strength`（体力上限）/ `max_backpack`（背包容量）
-- `properties.effect_value`: 提升数值
+- `properties.effect_value`: 效果数值，正数提升上限，负数降低上限（削弱类道具，如 `{"effect_type": "max_life", "effect_value": -50}`）
 
 规则：
-- 只提升上限，不恢复当前血量/体力；使用后道具消耗
+- 提升时不恢复当前血量/体力；使用后道具消耗
 - 溢出浪费：达到 `player` 配置的硬上限（`max_life_cap` / `max_strength_cap` / `max_backpack_items_cap`，默认 300/300/12）后再使用，超出部分无效，道具照常消耗
-- 生效上限 = max(硬上限, 规则基础值)，道具永远不会降低上限
+- 生效上限 = max(硬上限, 规则基础值)，正数道具永远不会让上限超过生效上限
+- 负数道具降低上限，下限为规则基础值（`max_life` / `max_strength` / `max_backpack_items` 的初始值），不会低于开局状态；降低后当前血量/体力若超过新上限，压到新上限
 - 旧配置无 `permanent_buffs` 数组时解析为空列表，保持兼容
 
 ## 扩展性说明
