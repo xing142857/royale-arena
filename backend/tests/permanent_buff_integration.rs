@@ -59,7 +59,6 @@ fn rules_with_caps(max_life_cap: i32, max_strength_cap: i32, backpack_cap: usize
 }
 
 // 以下辅助函数供 Task 3/4 的后续测试复用，当前任务暂未使用
-#[allow(dead_code)]
 fn add_test_place(game_state: &mut GameState, place_name: &str) {
     game_state
         .places
@@ -67,7 +66,6 @@ fn add_test_place(game_state: &mut GameState, place_name: &str) {
         .or_insert_with(|| Place::new(place_name.to_string()));
 }
 
-#[allow(dead_code)]
 fn add_test_player(
     game_state: &mut GameState,
     player_id: &str,
@@ -95,7 +93,6 @@ fn add_test_player(
 }
 
 /// 按名称给玩家背包塞入道具，返回道具 ID
-#[allow(dead_code)]
 fn give_item(game_state: &mut GameState, player_id: &str, item_name: &str) -> String {
     let item = game_state
         .rule_engine
@@ -111,7 +108,6 @@ fn give_item(game_state: &mut GameState, player_id: &str, item_name: &str) -> St
     item_id
 }
 
-#[allow(dead_code)]
 fn empty_action_params() -> ActionParams {
     ActionParams {
         target_place: None,
@@ -229,4 +225,94 @@ fn test_deserialize_old_player_state_backfills_backpack() {
     let state: GameState =
         serde_json::from_value(state_json).expect("deserialize legacy game state");
     assert_eq!(state.players["p1"].max_backpack_items, 6);
+}
+
+/// 测试：使用血量上限道具——只涨上限，当前血量/体力不变，道具销毁
+#[test]
+fn test_use_max_life_buff_raises_cap_only() {
+    let mut state = GameState::new("g1".to_string(), get_test_rules_with_permanent_buffs());
+    add_test_player(&mut state, "p1", "玩家1", "位置1");
+    state.players.get_mut("p1").unwrap().life = 80;
+
+    let item_id = give_item(&mut state, "p1", "[HP上限+50]壮骨丹");
+    let results = state
+        .handle_use_action("p1", &item_id, &empty_action_params())
+        .expect("use should succeed");
+
+    let player = state.players.get("p1").unwrap();
+    assert_eq!(player.max_life, 150);
+    assert_eq!(player.life, 80, "当前血量不应变化");
+    assert_eq!(player.strength, 100, "use 消耗默认为 0");
+    assert!(player.inventory.is_empty(), "道具应被销毁");
+    assert_eq!(results.results.len(), 1);
+}
+
+/// 测试：使用体力上限道具
+#[test]
+fn test_use_max_strength_buff() {
+    let mut state = GameState::new("g1".to_string(), get_test_rules_with_permanent_buffs());
+    add_test_player(&mut state, "p1", "玩家1", "位置1");
+
+    let item_id = give_item(&mut state, "p1", "[MP上限+50]行军丹");
+    state
+        .handle_use_action("p1", &item_id, &empty_action_params())
+        .expect("use should succeed");
+
+    let player = state.players.get("p1").unwrap();
+    assert_eq!(player.max_strength, 150);
+    assert_eq!(player.strength, 100, "当前体力不应变化");
+    assert!(player.inventory.is_empty());
+}
+
+/// 测试：连续使用至硬上限——clamp 且溢出浪费
+#[test]
+fn test_use_max_life_buff_clamps_to_cap() {
+    let mut state = GameState::new("g1".to_string(), rules_with_caps(150, 300, 12));
+    add_test_player(&mut state, "p1", "玩家1", "位置1");
+
+    // 100 + 100 → clamp 150，溢出 50 浪费
+    let id1 = give_item(&mut state, "p1", "[HP上限+100]金钟罩");
+    state
+        .handle_use_action("p1", &id1, &empty_action_params())
+        .expect("use should succeed");
+    assert_eq!(state.players["p1"].max_life, 150);
+
+    // 已到 cap 再用 +50 → +0，道具照常消耗
+    let id2 = give_item(&mut state, "p1", "[HP上限+50]壮骨丹");
+    state
+        .handle_use_action("p1", &id2, &empty_action_params())
+        .expect("use should succeed");
+    assert_eq!(state.players["p1"].max_life, 150);
+    assert!(state.players["p1"].inventory.is_empty());
+}
+
+/// 测试：cap 低于规则基础值时永不降低上限（生效上限 = max(cap, 基础值)）
+#[test]
+fn test_cap_below_base_never_lowers_max() {
+    let mut state = GameState::new("g1".to_string(), rules_with_caps(50, 300, 12));
+    add_test_player(&mut state, "p1", "玩家1", "位置1");
+
+    let item_id = give_item(&mut state, "p1", "[HP上限+100]金钟罩");
+    state
+        .handle_use_action("p1", &item_id, &empty_action_params())
+        .expect("use should succeed");
+    assert_eq!(state.players["p1"].max_life, 100, "生效上限应为 max(50, 100) = 100");
+}
+
+/// 测试：未知 effect_type —— 报错提示、道具回插、不扣体力
+#[test]
+fn test_unknown_effect_type_reinserts_item() {
+    let mut state = GameState::new("g1".to_string(), get_test_rules_with_permanent_buffs());
+    add_test_player(&mut state, "p1", "玩家1", "位置1");
+
+    let item_id = give_item(&mut state, "p1", "[异常]无效丹");
+    let results = state
+        .handle_use_action("p1", &item_id, &empty_action_params())
+        .expect("use action returns info result");
+
+    let player = state.players.get("p1").unwrap();
+    assert_eq!(player.inventory.len(), 1, "道具应原位插回");
+    assert_eq!(player.inventory[0].id, item_id);
+    assert_eq!(player.strength, 100);
+    assert_eq!(results.results.len(), 1);
 }

@@ -1,7 +1,8 @@
 //! 玩家使用道具行动处理（重构版）
 
 use crate::game::game_rule_engine::{
-    ConsumableProperties, CurrencyProperties, Item, ItemType, UtilityProperties,
+    ConsumableProperties, CurrencyProperties, Item, ItemType, PermanentBuffProperties,
+    UtilityProperties,
 };
 use crate::websocket::actions::player_action_scheduler::ActionParams;
 use crate::websocket::actions::utils::{
@@ -116,6 +117,14 @@ impl GameState {
                 &item.name,
                 properties,
                 action_params,
+                strength_before,
+                use_cost,
+            ),
+            ItemType::PermanentBuff(effect) => self.handle_permanent_buff_use(
+                player_id,
+                &player_name,
+                &item.name,
+                effect,
                 strength_before,
                 use_cost,
             ),
@@ -266,6 +275,95 @@ impl GameState {
             }
             _ => Err(format!("消耗品 {} 没有定义效果", item_display_name)),
         }
+    }
+
+    fn handle_permanent_buff_use(
+        &mut self,
+        player_id: &str,
+        player_name: &str,
+        item_display_name: &str,
+        effect: &PermanentBuffProperties,
+        strength_before: i32,
+        use_cost: i32,
+    ) -> Result<ItemUseOutcome, String> {
+        let (max_life_cap, base_max_life, max_strength_cap, base_max_strength, backpack_cap, base_backpack) = {
+            let pc = &self.rule_engine.player_config;
+            (
+                pc.max_life_cap,
+                pc.max_life,
+                pc.max_strength_cap,
+                pc.max_strength,
+                pc.max_backpack_items_cap,
+                pc.max_backpack_items,
+            )
+        };
+
+        let (label, before, after) = match effect.effect_type.as_str() {
+            "max_life" => {
+                let cap = max_life_cap.max(base_max_life);
+                let player = self.players.get_mut(player_id).unwrap();
+                let before = player.max_life;
+                player.max_life = (player.max_life + effect.effect_value).min(cap);
+                ("生命上限", before, player.max_life)
+            }
+            "max_strength" => {
+                let cap = max_strength_cap.max(base_max_strength);
+                let player = self.players.get_mut(player_id).unwrap();
+                let before = player.max_strength;
+                player.max_strength = (player.max_strength + effect.effect_value).min(cap);
+                ("体力上限", before, player.max_strength)
+            }
+            "max_backpack" => {
+                let cap = backpack_cap.max(base_backpack);
+                let player = self.players.get_mut(player_id).unwrap();
+                let before = player.max_backpack_items;
+                let boost = effect.effect_value.max(0) as usize;
+                player.max_backpack_items = (player.max_backpack_items + boost).min(cap);
+                ("背包容量", before as i32, player.max_backpack_items as i32)
+            }
+            _ => return Err(format!("永久增益道具 {} 没有定义效果", item_display_name)),
+        };
+
+        let delta = after - before;
+        let strength_after = self.predict_strength_after_use(player_id, use_cost);
+        let strength_delta = strength_after - strength_before;
+
+        let log_message = format!(
+            "{} 使用了 {}，{}: {} ({})，体力: {} ({})",
+            player_name,
+            item_display_name,
+            label,
+            after,
+            format_delta(delta),
+            strength_after,
+            format_delta(strength_delta)
+        );
+
+        let data = match effect.effect_type.as_str() {
+            "max_life" => json!({
+                "max_life": after,
+                "max_life_delta": delta,
+                "strength": strength_after,
+                "strength_delta": strength_delta,
+            }),
+            "max_strength" => json!({
+                "max_strength": after,
+                "max_strength_delta": delta,
+                "strength": strength_after,
+                "strength_delta": strength_delta,
+            }),
+            _ => json!({
+                "max_backpack_items": after,
+                "max_backpack_items_delta": delta,
+                "strength": strength_after,
+                "strength_delta": strength_delta,
+            }),
+        };
+
+        let result =
+            ActionResult::new_system_message(data, vec![player_id.to_string()], log_message, true);
+
+        Ok(ItemUseOutcome::new(vec![result]).with_reinsert(false))
     }
 
     fn handle_currency_use(
