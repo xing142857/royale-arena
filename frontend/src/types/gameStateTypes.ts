@@ -24,7 +24,7 @@ export interface ShopBuyItem {
 }
 
 // 物品类型分类
-export type ItemCategory = 'weapon' | 'armor' | 'consumable' | 'utility' | 'upgrader' | 'currency';
+export type ItemCategory = 'weapon' | 'armor' | 'consumable' | 'utility' | 'upgrader' | 'currency' | 'permanent_buff';
 
 // 物品类型载荷
 export interface ItemType {
@@ -51,6 +51,7 @@ export interface Player {
   strength: number;
   max_life: number;
   max_strength: number;
+  max_backpack_items: number;
   inventory: Item[];
   equipped_weapon: Item | null; // 修改：单槽位武器
   equipped_armor: Item | null; // 修改：单槽位防具

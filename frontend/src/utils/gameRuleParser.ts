@@ -258,7 +258,10 @@ export class GameRuleParser {
 					'daily_strength_recovery',
 					'search_cooldown',
 					'max_backpack_items',
-					'unarmed_damage'
+					'unarmed_damage',
+					'max_life_cap',
+					'max_strength_cap',
+					'max_backpack_items_cap'
 				])
 				if (playerUnexpected.length > 0) {
 					errors.push(`player 包含未知字段: ${playerUnexpected.join(', ')}`)
@@ -276,6 +279,22 @@ export class GameRuleParser {
 				for (const [field, label] of playerFields) {
 					if (!Object.prototype.hasOwnProperty.call(config.player, field)) {
 						errors.push(`缺少 player.${field} 字段`)
+						continue
+					}
+					const value = config.player[field]
+					if (typeof value !== 'number' || !Number.isFinite(value)) {
+						errors.push(`${label}必须是数字`)
+					}
+				}
+
+				const optionalPlayerFields: Array<[string, string]> = [
+					['max_life_cap', '生命上限硬上限'],
+					['max_strength_cap', '体力上限硬上限'],
+					['max_backpack_items_cap', '背包容量硬上限']
+				]
+
+				for (const [field, label] of optionalPlayerFields) {
+					if (config.player[field] === undefined) {
 						continue
 					}
 					const value = config.player[field]
@@ -422,7 +441,8 @@ export class GameRuleParser {
 						'utilities',
 						'consumables',
 						'upgraders',
-						'currencies'
+						'currencies',
+						'permanent_buffs'
 					])
 					if (itemsUnexpected.length > 0) {
 						errors.push(`items_config.items 包含未知字段: ${itemsUnexpected.join(', ')}`)
@@ -685,6 +705,47 @@ export class GameRuleParser {
 								}
 								if (typeof properties.value !== 'number' || !Number.isFinite(properties.value)) {
 									errors.push(`货币[${index}]数值必须是数字`)
+								}
+							}
+						})
+					}
+
+					if (categories.permanent_buffs !== undefined && !Array.isArray(categories.permanent_buffs)) {
+						errors.push('items_config.items.permanent_buffs 必须是数组')
+					} else if (Array.isArray(categories.permanent_buffs)) {
+						categories.permanent_buffs.forEach((buff: any, index: number) => {
+							if (!buff || typeof buff !== 'object') {
+								errors.push(`永久增益[${index}]配置必须是对象`)
+								return
+							}
+							const buffUnexpected = this.findUnexpectedKeys(buff as Record<string, unknown>, [
+								'name',
+								'internal_name',
+								'rarity',
+								'properties'
+							])
+							if (buffUnexpected.length > 0) {
+								errors.push(`items_config.items.permanent_buffs[${index}] 包含未知字段: ${buffUnexpected.join(', ')}`)
+							}
+							if (!buff.name || typeof buff.name !== 'string' || buff.name.trim().length === 0) {
+								errors.push(`永久增益[${index}]缺少名称`)
+							}
+							if (!buff.properties || typeof buff.properties !== 'object') {
+								errors.push(`永久增益[${index}]缺少属性配置`)
+							} else {
+								const properties = buff.properties
+								const buffPropUnexpected = this.findUnexpectedKeys(properties, [
+									'effect_type',
+									'effect_value'
+								])
+								if (buffPropUnexpected.length > 0) {
+									errors.push(`items_config.items.permanent_buffs[${index}].properties 包含未知字段: ${buffPropUnexpected.join(', ')}`)
+								}
+								if (typeof properties.effect_type !== 'string' || !['max_life', 'max_strength', 'max_backpack'].includes(properties.effect_type)) {
+									errors.push(`永久增益[${index}]效果类型必须为 max_life/max_strength/max_backpack`)
+								}
+								if (typeof properties.effect_value !== 'number' || !Number.isFinite(properties.effect_value) || properties.effect_value <= 0) {
+									errors.push(`永久增益[${index}]效果值必须是正数`)
 								}
 							}
 						})
