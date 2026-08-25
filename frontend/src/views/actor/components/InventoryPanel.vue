@@ -305,6 +305,7 @@ const sortedInventoryItems = computed<Item[]>(() => {
   const weaponItems: Item[] = []
   const armorItems: Item[] = []
   const upgraders: Item[] = []
+  const permanentBuffs: Item[] = []
   const others: Item[] = []
 
   inventory.forEach(item => {
@@ -358,6 +359,11 @@ const sortedInventoryItems = computed<Item[]>(() => {
       return
     }
 
+    if (category === 'permanent_buff') {
+      permanentBuffs.push(item)
+      return
+    }
+
     others.push(item)
   })
 
@@ -369,6 +375,7 @@ const sortedInventoryItems = computed<Item[]>(() => {
     ...weaponItems,
     ...armorItems,
     ...upgraders,
+    ...permanentBuffs,
     ...others
   ]
 })
@@ -378,6 +385,7 @@ const canUseItem = (item: Item) => {
   if (type === 'consumable') return true
   if (type === 'utility') return true
   if (type === 'currency') return true
+  if (type === 'permanent_buff') return true
   return false
 }
 
