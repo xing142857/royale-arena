@@ -168,24 +168,18 @@
         }
       ],
       "permanent_buffs": [
-        {"name": "[HP上限+20]养生丸", "properties": {"effect_type": "max_life", "effect_value": 20}},
-        {"name": "[HP上限+50]壮骨丹", "properties": {"effect_type": "max_life", "effect_value": 50}},
-        {"name": "[HP上限+100]金钟罩", "properties": {"effect_type": "max_life", "effect_value": 100}},
-        {"name": "[MP上限+20]干粮", "properties": {"effect_type": "max_strength", "effect_value": 20}},
-        {"name": "[MP上限+50]行军丹", "properties": {"effect_type": "max_strength", "effect_value": 50}},
-        {"name": "[MP上限+100]龙力丸", "properties": {"effect_type": "max_strength", "effect_value": 100}},
-        {"name": "[背包+2]腰包", "properties": {"effect_type": "max_backpack", "effect_value": 2}},
-        {"name": "[背包+4]行囊", "properties": {"effect_type": "max_backpack", "effect_value": 4}},
-        {"name": "[背包+6]百宝袋", "properties": {"effect_type": "max_backpack", "effect_value": 6}},
-        {"name": "[HP上限-20]蚀骨散", "properties": {"effect_type": "max_life", "effect_value": -20}},
-        {"name": "[HP上限-50]衰弱咒", "properties": {"effect_type": "max_life", "effect_value": -50}},
-        {"name": "[HP上限-100]枯萎蛊", "properties": {"effect_type": "max_life", "effect_value": -100}},
-        {"name": "[MP上限-20]迷魂香", "properties": {"effect_type": "max_strength", "effect_value": -20}},
-        {"name": "[MP上限-50]软筋散", "properties": {"effect_type": "max_strength", "effect_value": -50}},
-        {"name": "[MP上限-100]缚魂咒", "properties": {"effect_type": "max_strength", "effect_value": -100}},
-        {"name": "[背包-2]破损袋", "properties": {"effect_type": "max_backpack", "effect_value": -2}},
-        {"name": "[背包-4]漏底包", "properties": {"effect_type": "max_backpack", "effect_value": -4}},
-        {"name": "[背包-6]破麻袋", "properties": {"effect_type": "max_backpack", "effect_value": -6}}
+        {"name": "[HP上限+10]生命粉尘", "properties": {"effect_type": "max_life", "effect_value": 10}},
+        {"name": "[HP上限+20]生命树枝", "properties": {"effect_type": "max_life", "effect_value": 20}},
+        {"name": "[HP上限+50]生命树之心", "properties": {"effect_type": "max_life", "effect_value": 50}},
+        {"name": "[MP上限+10]魔源之芽", "properties": {"effect_type": "max_strength", "effect_value": 10}},
+        {"name": "[MP上限+20]涓流秘药", "properties": {"effect_type": "max_strength", "effect_value": 20}},
+        {"name": "[MP上限+50]无尽源泉", "properties": {"effect_type": "max_strength", "effect_value": 50}},
+        {"name": "[背包+1]皮质旅囊", "properties": {"effect_type": "max_backpack", "effect_value": 1}},
+        {"name": "[背包+2]星罗宝袋", "properties": {"effect_type": "max_backpack", "effect_value": 2}},
+        {"name": "[背包+5]万象之戒", "properties": {"effect_type": "max_backpack", "effect_value": 5}},
+        {"name": "[HP上限-300]枯血药剂", "properties": {"effect_type": "max_life", "effect_value": -300}},
+        {"name": "[MP上限-300]干涸药剂", "properties": {"effect_type": "max_strength", "effect_value": -300}},
+        {"name": "[背包-12]破损袋", "properties": {"effect_type": "max_backpack", "effect_value": -12}}
       ],
       "upgraders": [
         {
@@ -481,7 +475,7 @@
   "rest_mode": {
     "life_recovery": 25,
     "max_moves": 1,
-    "strength_recovery": 1000
+    "strength_recovery": 100
   },
-  "teammate_behavior": 11
+  "teammate_behavior": 0
 }
