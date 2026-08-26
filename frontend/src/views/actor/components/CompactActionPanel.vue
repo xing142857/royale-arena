@@ -43,7 +43,7 @@
             style="width: 120px;"
             placement="bottom-start"
             :popper-options="selectPopperOptions"
-            :filterable="!isCoarsePointer"
+            :filterable="!isCoarseSelect"
             :class="{
               'safe-zone-selected': isSafePlace(selectedPlace) && !isNextNightDestroyedPlace(selectedPlace),
               'next-destroy-selected': isNextNightDestroyedPlace(selectedPlace)
@@ -78,7 +78,7 @@
             style="width: 120px;"
             placement="bottom-start"
             :popper-options="selectPopperOptions"
-            :filterable="!isCoarsePointer"
+            :filterable="!isCoarseSelect"
             :class="{
               'safe-zone-selected': isSafePlace(targetPlace) && !isNextNightDestroyedPlace(targetPlace),
               'next-destroy-selected': isNextNightDestroyedPlace(targetPlace)
@@ -241,7 +241,7 @@
           style="width: 120px;"
           placement="bottom-start"
           :popper-options="selectPopperOptions"
-          :filterable="!isCoarsePointer"
+          :filterable="!isCoarseSelect"
         >
           <el-option
             v-for="otherPlayer in sortedOtherPlayers"
@@ -379,9 +379,24 @@ const selectPopperOptions = {
   ]
 }
 
-// 触屏设备禁用下拉框筛选输入，避免点击时弹出输入法
-const isCoarsePointer =
-  typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+// 移动端/触屏设备禁用下拉框筛选输入，避免点击时弹出输入法或出现可编辑的搜索框
+// 同时结合“触摸指针”和“窄屏（手机版布局）”两个条件判断，
+// 这样即使在桌面浏览器的移动端调试模式（未必报告 pointer: coarse）下也能生效
+const MOBILE_SELECT_BREAKPOINT = 768
+const isCoarsePointer = ref(false)
+const isNarrowViewport = ref(false)
+const isCoarseSelect = computed(() => isCoarsePointer.value || isNarrowViewport.value)
+
+let coarsePointerMediaQuery: MediaQueryList | null = null
+const handleCoarsePointerChange = (event: MediaQueryListEvent) => {
+  isCoarsePointer.value = event.matches
+}
+
+const updateViewportWidth = () => {
+  if (typeof window !== 'undefined') {
+    isNarrowViewport.value = window.innerWidth <= MOBILE_SELECT_BREAKPOINT
+  }
+}
 
 const safeZoneOptionStyle: Record<string, string> = {
   color: '#67c23a',
@@ -633,6 +648,15 @@ onMounted(() => {
   timer = window.setInterval(() => {
     now.value = Date.now() + serverOffsetMs.value
   }, 100)
+
+  if (typeof window !== 'undefined') {
+    updateViewportWidth()
+    window.addEventListener('resize', updateViewportWidth)
+
+    coarsePointerMediaQuery = window.matchMedia('(pointer: coarse)')
+    isCoarsePointer.value = coarsePointerMediaQuery.matches
+    coarsePointerMediaQuery.addEventListener('change', handleCoarsePointerChange)
+  }
 })
 
 watch(serverOffsetMs, (newOffset) => {
@@ -648,6 +672,12 @@ onUnmounted(() => {
     window.clearTimeout(lifeAnimationTimer)
     lifeAnimationTimer = null
   }
+
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', updateViewportWidth)
+  }
+  coarsePointerMediaQuery?.removeEventListener('change', handleCoarsePointerChange)
+  coarsePointerMediaQuery = null
 })
 
 // Resetting the class allows repeated life changes to retrigger the CSS animation.

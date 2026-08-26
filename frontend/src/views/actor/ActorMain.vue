@@ -418,4 +418,11 @@ const showKillRecordsDialog = async () => {
 
 <style scoped>
 /* 移除了共享样式，现在使用公用CSS文件中的样式 */
+
+/* 移动端左右增加一些留白，避免内容贴边 */
+@media (max-width: 768px) {
+  .shared-main {
+    padding: 8px 12px;
+  }
+}
 </style>
