@@ -32,7 +32,7 @@
 
   <!-- 核心操作区 -->
   <div class="core-actions">
-    <div class="action-row">
+    <div class="action-row" :class="{ 'action-row--spawned': hasSpawned }">
       <!-- 出生/移动操作 -->
       <div class="action-group">
         <template v-if="!hasSpawned">
@@ -235,62 +235,68 @@
   <!-- 通信快捷区 -->
   <div class="communication-actions" v-if="props.communicationVisible">
     <div class="comm-row">
-      <!-- 传音 -->
       <div class="deliver-group">
-        <el-select 
-          v-model="targetPlayer" 
-          placeholder="选择玩家" 
-          size="small"
-          style="width: 120px;"
-          placement="bottom-start"
-          :popper-options="selectPopperOptions"
-          :filterable="!isCoarseSelect"
-        >
-          <el-option
-            v-for="otherPlayer in sortedOtherPlayers"
-            :key="otherPlayer.id"
-            :label="otherPlayer.name"
-            :value="otherPlayer.id"
-          />
-        </el-select>
-        <el-input 
-          v-model="deliverMessage" 
-          placeholder="传音内容"
-          size="small"
-          style="width: 150px;"
-          :maxlength="MESSAGE_MAX_LENGTH"
-          show-word-limit
-          @keyup.enter="handleDeliver"
-        />
-        <el-button 
-          size="small"
-          :disabled="!targetPlayer || !deliverMessage.trim() || deliverMessageTooLong"
-          @click="handleDeliver"
-        >
-          传音
-        </el-button>
-        <span v-if="deliverMessageTooLong" class="input-error">内容不能超过 {{ MESSAGE_MAX_LENGTH }} 字</span>
-      </div>
+        <!-- 选择玩家 -->
+        <div class="comm-input-line">
+          <el-select 
+            v-model="targetPlayer" 
+            placeholder="选择玩家" 
+            size="small"
+            style="width: 120px;"
+            placement="bottom-start"
+            :popper-options="selectPopperOptions"
+            :filterable="!isCoarseSelect"
+          >
+            <el-option
+              v-for="otherPlayer in sortedOtherPlayers"
+              :key="otherPlayer.id"
+              :label="otherPlayer.name"
+              :value="otherPlayer.id"
+            />
+          </el-select>
+        </div>
 
-      <!-- 发送给导演 -->
-      <div class="director-message-group">
-        <el-input 
-          v-model="directorMessage" 
-          placeholder="发送给导演"
-          size="small"
-          style="width: 200px;"
-          :maxlength="MESSAGE_MAX_LENGTH"
-          show-word-limit
-          @keyup.enter="handleSendToDirector"
-        />
-        <el-button 
-          size="small"
-          :disabled="!directorMessage.trim() || directorMessageTooLong"
-          @click="handleSendToDirector"
-        >
-          发送
-        </el-button>
-        <span v-if="directorMessageTooLong" class="input-error">内容不能超过 {{ MESSAGE_MAX_LENGTH }} 字</span>
+        <!-- 传音内容 -->
+        <div class="comm-input-line">
+          <el-input 
+            v-model="deliverMessage" 
+            placeholder="传音内容"
+            size="small"
+            style="width: 200px;"
+            :maxlength="MESSAGE_MAX_LENGTH"
+            show-word-limit
+            @keyup.enter="handleDeliver"
+          />
+          <el-button 
+            size="small"
+            :disabled="!targetPlayer || !deliverMessage.trim() || deliverMessageTooLong"
+            @click="handleDeliver"
+          >
+            传音
+          </el-button>
+          <span v-if="deliverMessageTooLong" class="input-error">内容不能超过 {{ MESSAGE_MAX_LENGTH }} 字</span>
+        </div>
+
+        <!-- 发送给导演 -->
+        <div class="comm-input-line">
+          <el-input 
+            v-model="directorMessage" 
+            placeholder="发送给导演"
+            size="small"
+            style="width: 200px;"
+            :maxlength="MESSAGE_MAX_LENGTH"
+            show-word-limit
+            @keyup.enter="handleSendToDirector"
+          />
+          <el-button 
+            size="small"
+            :disabled="!directorMessage.trim() || directorMessageTooLong"
+            @click="handleSendToDirector"
+          >
+            发送
+          </el-button>
+          <span v-if="directorMessageTooLong" class="input-error">内容不能超过 {{ MESSAGE_MAX_LENGTH }} 字</span>
+        </div>
       </div>
     </div>
   </div>
@@ -963,7 +969,7 @@ function formatDuration(durationMs: number) {
 
 .action-row {
   display: flex;
-  gap: 12px;
+  gap: 28px;
   align-items: center;
   flex-wrap: wrap;
 }
@@ -1093,14 +1099,25 @@ function formatDuration(durationMs: number) {
 .comm-row {
   display: flex;
   gap: 16px;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
 }
 
-.deliver-group, .director-message-group {
+.deliver-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.comm-input-line {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.deliver-group .el-input {
+  flex: none;
 }
 
 .input-error {
@@ -1112,10 +1129,6 @@ function formatDuration(durationMs: number) {
 @media (min-width: 769px) {
   .comm-row {
     width: 100%;
-  }
-
-  .director-message-group {
-    margin-left: auto;
   }
 }
 
@@ -1150,7 +1163,8 @@ function formatDuration(durationMs: number) {
 
   .primary-actions {
     justify-content: center;
-    width: auto;
+    width: 100%;
+    flex-wrap: wrap;
   }
   
   .action-row {
@@ -1160,13 +1174,14 @@ function formatDuration(durationMs: number) {
   }
   
   .action-group {
-    justify-content: center;
-    width: 100%;
+    justify-content: flex-start;
+    width: auto;
   }
 
   .action-buttons {
     justify-content: center;
     flex-wrap: wrap;
+    gap: 8px;
   }
 
   .timing-hints {
@@ -1196,29 +1211,47 @@ function formatDuration(durationMs: number) {
     flex-wrap: wrap;
     justify-content: left;
   }
+
+  .action-row--spawned {
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .action-row--spawned .action-group {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .action-row--spawned .action-buttons {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 600px) {
-  .deliver-group, .director-message-group {
+  .deliver-group {
+    width: 100%;
+  }
+
+  .comm-input-line {
     flex-direction: row;
     flex-wrap: wrap;
-    width: auto;
+    width: 100%;
     justify-content: left;
   }
-  
+
   .deliver-group .el-select {
     flex: 1 1 100%;
     width: auto !important;
   }
 
-  .deliver-group .el-input,
-  .director-message-group .el-input {
+  .comm-input-line .el-input {
     flex: 1 1 140px;
     width: auto !important;
   }
 
-  .deliver-group .el-button,
-  .director-message-group .el-button {
+  .comm-input-line .el-button {
     flex: 0 0 auto;
   }
 
