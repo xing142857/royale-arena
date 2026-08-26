@@ -222,6 +222,9 @@
         </template>
       </span>
       <span class="timing-text timing-night">{{ nightCountdownMessage }}</span>
+      <div class="rest-status-chip rest-mobile" :class="restStatusClass">
+        <span class="rest-status-text">{{ restStatusLabel }}</span>
+      </div>
     </div>
 
     <div class="search-result-brief">
@@ -288,12 +291,6 @@
           发送
         </el-button>
         <span v-if="directorMessageTooLong" class="input-error">内容不能超过 {{ MESSAGE_MAX_LENGTH }} 字</span>
-      </div>
-      <div
-        class="rest-status-chip rest-mobile"
-        :class="restStatusClass"
-      >
-        <span class="rest-status-text">{{ restStatusLabel }}</span>
       </div>
     </div>
   </div>
@@ -1164,6 +1161,7 @@ function formatDuration(durationMs: number) {
   
   .action-group {
     justify-content: center;
+    width: 100%;
   }
 
   .action-buttons {
@@ -1175,14 +1173,22 @@ function formatDuration(durationMs: number) {
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: left;
-    align-items: left;
+    align-items: center;
     gap: 8px;
   }
 
   .timing-search,
   .timing-night {
+    flex: 0 1 auto;
     text-align: left;
-    min-width: 150px;
+    min-width: 0;
+  }
+
+  .timing-night {
+    flex: 1 1 auto;
+    text-align: center;
+    display: flex;
+    justify-content: center;
   }
   
   .quick-item-row, .comm-row {
@@ -1200,10 +1206,14 @@ function formatDuration(durationMs: number) {
     justify-content: left;
   }
   
-  .deliver-group .el-select,
+  .deliver-group .el-select {
+    flex: 1 1 100%;
+    width: auto !important;
+  }
+
   .deliver-group .el-input,
   .director-message-group .el-input {
-    flex: 1 1 150px;
+    flex: 1 1 140px;
     width: auto !important;
   }
 
