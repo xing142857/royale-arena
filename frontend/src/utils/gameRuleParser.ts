@@ -16,11 +16,14 @@ export interface ParsedGameRules {
 	}
 	player: {
 		maxLife: number
+		maxLifeCap: number
 		maxStrength: number
+		maxStrengthCap: number
 		dailyLifeRecovery: number
 		dailyStrengthRecovery: number
 		searchCooldown: number
 		maxBackpackItems: number
+		maxBackpackItemsCap: number
 		unarmedDamage: number
 	}
 	actionCosts: {
@@ -111,11 +114,14 @@ export class GameRuleParser {
 			},
 			player: {
 				maxLife: config.player.max_life,
+				maxLifeCap: config.player.max_life_cap ?? 300,
 				maxStrength: config.player.max_strength,
+				maxStrengthCap: config.player.max_strength_cap ?? 300,
 				dailyLifeRecovery: config.player.daily_life_recovery,
 				dailyStrengthRecovery: config.player.daily_strength_recovery,
 				searchCooldown: config.player.search_cooldown,
 				maxBackpackItems: config.player.max_backpack_items,
+				maxBackpackItemsCap: config.player.max_backpack_items_cap ?? 12,
 				unarmedDamage: config.player.unarmed_damage
 			},
 			actionCosts: {
