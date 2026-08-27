@@ -38,7 +38,6 @@
             :game="game"
             :director-password="directorPassword"
             @status-updated="handleStatusUpdated"
-            @refresh="refreshGame"
           />
 
           <!-- WebSocket连接状态提示 -->
