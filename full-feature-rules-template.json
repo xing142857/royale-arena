@@ -176,10 +176,7 @@
         {"name": "[MP上限+50]无尽源泉", "properties": {"effect_type": "max_strength", "effect_value": 50}},
         {"name": "[背包+1]皮质旅囊", "properties": {"effect_type": "max_backpack", "effect_value": 1}},
         {"name": "[背包+2]星罗宝袋", "properties": {"effect_type": "max_backpack", "effect_value": 2}},
-        {"name": "[背包+5]万象之戒", "properties": {"effect_type": "max_backpack", "effect_value": 5}},
-        {"name": "[HP上限-300]枯血药剂", "properties": {"effect_type": "max_life", "effect_value": -300}},
-        {"name": "[MP上限-300]干涸药剂", "properties": {"effect_type": "max_strength", "effect_value": -300}},
-        {"name": "[背包-12]破损袋", "properties": {"effect_type": "max_backpack", "effect_value": -12}}
+        {"name": "[背包+5]万象之戒", "properties": {"effect_type": "max_backpack", "effect_value": 5}}
       ],
       "upgraders": [
         {
