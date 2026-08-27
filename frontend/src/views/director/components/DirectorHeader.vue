@@ -177,11 +177,9 @@ const props = defineProps<{
 // Emits
 const emit = defineEmits<{
   (e: 'status-updated'): void
-  (e: 'refresh'): void
 }>()
 
 const openRulesPreview = () => {
-  emit('refresh')
   showRulesPreview.value = true
 }
 
