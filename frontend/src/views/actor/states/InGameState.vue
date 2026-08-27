@@ -40,7 +40,7 @@
             @click="toggleInventorySection"
           />
           <div class="section-controls">
-            <el-tag v-if="player" type="info">总物品数: {{ totalItemCount }}</el-tag>
+            <el-tag v-if="player" type="info">总物品数: {{ totalItemCount }}/{{ player.max_backpack_items }}</el-tag>
           </div>
         </div>
         <InventoryPanel

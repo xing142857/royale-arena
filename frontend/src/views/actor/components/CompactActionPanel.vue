@@ -6,11 +6,11 @@
     </div>
     <div class="status-item">
       <span class="status-label">生命:</span>
-      <span :class="['status-value', 'life', lifeAnimationClass]">{{ player.life }}</span>
+      <span :class="['status-value', 'life', lifeAnimationClass]">{{ player.life }}/{{ player.max_life }}</span>
     </div>
     <div class="status-item">
       <span class="status-label">体力:</span>
-      <span class="status-value strength">{{ player.strength }}</span>
+      <span class="status-value strength">{{ player.strength }}/{{ player.max_strength }}</span>
     </div>
     <div class="status-item">
       <span class="status-label">货币:</span>
