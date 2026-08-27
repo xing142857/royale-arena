@@ -463,6 +463,176 @@ impl GameState {
         Ok(action_result.as_results())
     }
 
+    /// 设置玩家生命上限（clamp 到 [base, cap]，当前生命高于新上限时压到新上限）
+    pub fn handle_set_player_max_life(
+        &mut self,
+        player_id: &str,
+        max_life: i32,
+    ) -> Result<ActionResults, String> {
+        let (base_max_life, max_life_cap) = {
+            let pc = &self.rule_engine.player_config;
+            (pc.max_life, pc.max_life_cap)
+        };
+        let cap = max_life_cap.max(base_max_life);
+        let new_max_life = max_life.clamp(base_max_life, cap);
+
+        let (player_name, final_max_life, final_life) = {
+            let player = self.players.get_mut(player_id).ok_or("Player not found")?;
+
+            if player.max_life == new_max_life {
+                let data = serde_json::json!({
+                    "player_id": player_id,
+                    "max_life": player.max_life,
+                    "message": "生命上限未发生变化"
+                });
+                let log_message = format!(
+                    "导演尝试设置 {} 生命上限为 {}，但未发生变化（或被上限规则收敛回原值）",
+                    player.name, max_life
+                );
+                return Ok(
+                    ActionResult::new_info_message(data, vec![], log_message, true).as_results(),
+                );
+            }
+
+            let player_name = player.name.clone();
+            player.max_life = new_max_life;
+            if player.life > player.max_life {
+                player.life = player.max_life;
+            }
+            (player_name, player.max_life, player.life)
+        };
+
+        let data = serde_json::json!({
+            "player_id": player_id,
+            "max_life": final_max_life,
+            "life": final_life
+        });
+
+        let action_result = ActionResult::new_system_message(
+            data,
+            vec![player_id.to_string()],
+            format!(
+                "导演设置 {} 生命上限为 {}（当前生命 {}）",
+                player_name, final_max_life, final_life
+            ),
+            true,
+        );
+
+        Ok(action_result.as_results())
+    }
+
+    /// 设置玩家体力上限（clamp 到 [base, cap]，当前体力高于新上限时压到新上限）
+    pub fn handle_set_player_max_strength(
+        &mut self,
+        player_id: &str,
+        max_strength: i32,
+    ) -> Result<ActionResults, String> {
+        let (base_max_strength, max_strength_cap) = {
+            let pc = &self.rule_engine.player_config;
+            (pc.max_strength, pc.max_strength_cap)
+        };
+        let cap = max_strength_cap.max(base_max_strength);
+        let new_max_strength = max_strength.clamp(base_max_strength, cap);
+
+        let (player_name, final_max_strength, final_strength) = {
+            let player = self.players.get_mut(player_id).ok_or("Player not found")?;
+
+            if player.max_strength == new_max_strength {
+                let data = serde_json::json!({
+                    "player_id": player_id,
+                    "max_strength": player.max_strength,
+                    "message": "体力上限未发生变化"
+                });
+                let log_message = format!(
+                    "导演尝试设置 {} 体力上限为 {}，但未发生变化（或被上限规则收敛回原值）",
+                    player.name, max_strength
+                );
+                return Ok(
+                    ActionResult::new_info_message(data, vec![], log_message, true).as_results(),
+                );
+            }
+
+            let player_name = player.name.clone();
+            player.max_strength = new_max_strength;
+            if player.strength > player.max_strength {
+                player.strength = player.max_strength;
+            }
+            (player_name, player.max_strength, player.strength)
+        };
+
+        let data = serde_json::json!({
+            "player_id": player_id,
+            "max_strength": final_max_strength,
+            "strength": final_strength
+        });
+
+        let action_result = ActionResult::new_system_message(
+            data,
+            vec![player_id.to_string()],
+            format!(
+                "导演设置 {} 体力上限为 {}（当前体力 {}）",
+                player_name, final_max_strength, final_strength
+            ),
+            true,
+        );
+
+        Ok(action_result.as_results())
+    }
+
+    /// 设置玩家背包上限（clamp 到 [base, cap]，降低上限不丢弃已有物品）
+    pub fn handle_set_player_max_backpack(
+        &mut self,
+        player_id: &str,
+        max_backpack_items: i32,
+    ) -> Result<ActionResults, String> {
+        let (base_backpack, backpack_cap) = {
+            let pc = &self.rule_engine.player_config;
+            (pc.max_backpack_items, pc.max_backpack_items_cap)
+        };
+        let base = base_backpack as i32;
+        let cap = (backpack_cap as i32).max(base);
+        let new_max = max_backpack_items.clamp(base, cap) as usize;
+
+        let (player_name, final_max) = {
+            let player = self.players.get_mut(player_id).ok_or("Player not found")?;
+
+            if player.max_backpack_items == new_max {
+                let data = serde_json::json!({
+                    "player_id": player_id,
+                    "max_backpack_items": player.max_backpack_items,
+                    "message": "背包上限未发生变化"
+                });
+                let log_message = format!(
+                    "导演尝试设置 {} 背包上限为 {}，但未发生变化（或被上限规则收敛回原值）",
+                    player.name, max_backpack_items
+                );
+                return Ok(
+                    ActionResult::new_info_message(data, vec![], log_message, true).as_results(),
+                );
+            }
+
+            let player_name = player.name.clone();
+            player.max_backpack_items = new_max;
+            (player_name, new_max)
+        };
+
+        // 降低上限不丢弃已有物品：inventory 不裁剪，仅拦截后续拾取
+
+        let data = serde_json::json!({
+            "player_id": player_id,
+            "max_backpack_items": final_max
+        });
+
+        let action_result = ActionResult::new_system_message(
+            data,
+            vec![player_id.to_string()],
+            format!("导演设置 {} 背包上限为 {}", player_name, final_max),
+            true,
+        );
+
+        Ok(action_result.as_results())
+    }
+
     /// 移动玩家到指定地点
     pub fn handle_move_player(
         &mut self,

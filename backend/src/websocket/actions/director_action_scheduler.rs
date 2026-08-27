@@ -25,6 +25,9 @@ pub struct DirectorActionParams {
     pub life: Option<i32>,     // 玩家生命值
     pub strength: Option<i32>, // 玩家体力值
     pub coins: Option<f64>,    // 玩家货币
+    pub max_life: Option<i32>,           // 玩家生命上限
+    pub max_strength: Option<i32>,       // 玩家体力上限
+    pub max_backpack_items: Option<i32>, // 玩家背包上限
     pub target_place: Option<String>,
     pub action_type: Option<String>, // rope/unrope
     pub rest_enabled: Option<bool>,  // 夜晚结算时静养是否生效
@@ -165,6 +168,36 @@ impl DirectorActionScheduler {
                     .coins
                     .ok_or_else(|| "Missing coins parameter".to_string())?;
                 game_state.handle_set_player_coins(&player_id, coins)
+            }
+
+            "max_life" => {
+                let player_id = action_params
+                    .player_id
+                    .ok_or_else(|| "Missing player_id parameter".to_string())?;
+                let max_life = action_params
+                    .max_life
+                    .ok_or_else(|| "Missing max_life parameter".to_string())?;
+                game_state.handle_set_player_max_life(&player_id, max_life)
+            }
+
+            "max_strength" => {
+                let player_id = action_params
+                    .player_id
+                    .ok_or_else(|| "Missing player_id parameter".to_string())?;
+                let max_strength = action_params
+                    .max_strength
+                    .ok_or_else(|| "Missing max_strength parameter".to_string())?;
+                game_state.handle_set_player_max_strength(&player_id, max_strength)
+            }
+
+            "max_backpack" => {
+                let player_id = action_params
+                    .player_id
+                    .ok_or_else(|| "Missing player_id parameter".to_string())?;
+                let max_backpack_items = action_params
+                    .max_backpack_items
+                    .ok_or_else(|| "Missing max_backpack_items parameter".to_string())?;
+                game_state.handle_set_player_max_backpack(&player_id, max_backpack_items)
             }
 
             "move_player" => {
