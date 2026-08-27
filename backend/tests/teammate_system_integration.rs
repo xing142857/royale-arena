@@ -63,6 +63,9 @@ fn set_teammate_behavior_updates_rule_engine_and_rules_config() {
         shop_listing_id: None,
         price: None,
         quantity: None,
+        max_life: None,
+        max_strength: None,
+        max_backpack_items: None,
     };
     let results = DirectorActionScheduler::dispatch(&mut state, "set_teammate_behavior", params)
         .expect("dispatch should succeed");
@@ -107,6 +110,9 @@ fn set_teammate_behavior_zero_disables_mode() {
         shop_listing_id: None,
         price: None,
         quantity: None,
+        max_life: None,
+        max_strength: None,
+        max_backpack_items: None,
     };
     DirectorActionScheduler::dispatch(&mut state, "set_teammate_behavior", params)
         .expect("dispatch should succeed");
@@ -145,6 +151,9 @@ fn set_teammate_behavior_rejects_out_of_range() {
             shop_listing_id: None,
             price: None,
             quantity: None,
+            max_life: None,
+            max_strength: None,
+            max_backpack_items: None,
         };
         let result = DirectorActionScheduler::dispatch(&mut state, "set_teammate_behavior", params);
         assert!(result.is_err(), "mode={} should be rejected", bad);
