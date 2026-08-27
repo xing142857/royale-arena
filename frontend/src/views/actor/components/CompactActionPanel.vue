@@ -6,11 +6,11 @@
     </div>
     <div class="status-item">
       <span class="status-label">生命:</span>
-      <span :class="['status-value', 'life', lifeAnimationClass]">{{ player.life }}/{{ player.max_life }}</span>
+      <span :class="['status-value', 'life', lifeAnimationClass]">{{ player.life }}{{ lifeCapRaised ? `/${player.max_life}` : '' }}</span>
     </div>
     <div class="status-item">
       <span class="status-label">体力:</span>
-      <span class="status-value strength">{{ player.strength }}/{{ player.max_strength }}</span>
+      <span class="status-value strength">{{ player.strength }}{{ strengthCapRaised ? `/${player.max_strength}` : '' }}</span>
     </div>
     <div class="status-item">
       <span class="status-label">货币:</span>
@@ -630,6 +630,16 @@ const searchResultText = computed(() => {
   }
   const typeLabel = result.target_type === 'player' ? '玩家' : '道具'
   return `最近发现${typeLabel}: ${result.target_name}`
+})
+
+const lifeCapRaised = computed(() => {
+  const base = props.globalState?.rules_config?.player?.max_life
+  return typeof base === 'number' && props.player.max_life > base
+})
+
+const strengthCapRaised = computed(() => {
+  const base = props.globalState?.rules_config?.player?.max_strength
+  return typeof base === 'number' && props.player.max_strength > base
 })
 
 const lifeAnimationClass = computed(() => {
