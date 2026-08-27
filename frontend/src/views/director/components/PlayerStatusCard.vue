@@ -39,7 +39,7 @@
           max-height="400"
           :fit="false"
         >
-          <el-table-column label="玩家" min-width="100">
+          <el-table-column label="玩家" min-width="100" fixed="left">
             <template #header>
               <div
                 class="sortable-header"

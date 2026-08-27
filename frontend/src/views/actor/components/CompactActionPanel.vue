@@ -232,75 +232,6 @@
     </div>
   </div>
 
-  <!-- 通信快捷区 -->
-  <div class="communication-actions" v-if="props.communicationVisible">
-    <div class="comm-row">
-      <div class="deliver-group">
-        <!-- 选择玩家 -->
-        <div class="comm-input-line">
-          <el-select 
-            v-model="targetPlayer" 
-            placeholder="选择玩家" 
-            size="small"
-            style="width: 120px;"
-            placement="bottom-start"
-            :popper-options="selectPopperOptions"
-            :filterable="!isCoarseSelect"
-          >
-            <el-option
-              v-for="otherPlayer in sortedOtherPlayers"
-              :key="otherPlayer.id"
-              :label="otherPlayer.name"
-              :value="otherPlayer.id"
-            />
-          </el-select>
-        </div>
-
-        <!-- 传音内容 -->
-        <div class="comm-input-line">
-          <el-input 
-            v-model="deliverMessage" 
-            placeholder="传音内容"
-            size="small"
-            style="width: 200px;"
-            :maxlength="MESSAGE_MAX_LENGTH"
-            show-word-limit
-            @keyup.enter="handleDeliver"
-          />
-          <el-button 
-            size="small"
-            :disabled="!targetPlayer || !deliverMessage.trim() || deliverMessageTooLong"
-            @click="handleDeliver"
-          >
-            传音
-          </el-button>
-          <span v-if="deliverMessageTooLong" class="input-error">内容不能超过 {{ MESSAGE_MAX_LENGTH }} 字</span>
-        </div>
-
-        <!-- 发送给导演 -->
-        <div class="comm-input-line">
-          <el-input 
-            v-model="directorMessage" 
-            placeholder="发送给导演"
-            size="small"
-            style="width: 200px;"
-            :maxlength="MESSAGE_MAX_LENGTH"
-            show-word-limit
-            @keyup.enter="handleSendToDirector"
-          />
-          <el-button 
-            size="small"
-            :disabled="!directorMessage.trim() || directorMessageTooLong"
-            @click="handleSendToDirector"
-          >
-            发送
-          </el-button>
-          <span v-if="directorMessageTooLong" class="input-error">内容不能超过 {{ MESSAGE_MAX_LENGTH }} 字</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <SellItemDialog v-model="sellDialogVisible" :inventory="props.player.inventory" />
 </template>
 
@@ -312,16 +243,13 @@ import { calculatePlayerVotes } from '@/utils/playerUtils'
 import { useGameStateStore } from '@/stores/gameState'
 import SellItemDialog from './SellItemDialog.vue'
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   player: Player
   places: ActorPlace[]
   players: ActorPlayer[]
   globalState: GlobalState | null
   shopListings: ShopListing[]
-  communicationVisible?: boolean
-}>(), {
-  communicationVisible: true
-})
+}>()
 
 const emit = defineEmits<{
   action: [action: string, params: Record<string, any>]
@@ -331,16 +259,12 @@ const emit = defineEmits<{
 // 响应式数据
 const selectedPlace = ref('')
 const targetPlace = ref('')
-const targetPlayer = ref('')
-const deliverMessage = ref('')
-const directorMessage = ref('')
 const gameStateStore = useGameStateStore()
 const { serverOffsetMs } = storeToRefs(gameStateStore)
 const now = ref(Date.now() + serverOffsetMs.value)
 let timer: number | null = null
 const lifeAnimation = ref<'damage' | 'heal' | ''>('')
 let lifeAnimationTimer: number | null = null
-const MESSAGE_MAX_LENGTH = 100
 const shopPopoverVisible = ref(false)
 const shopQuantities = ref<Record<string, number>>({})
 
@@ -612,17 +536,6 @@ const canSearchNow = computed(() => {
   return now.value >= nextAvailable
 })
 
-const otherPlayers = computed((): ActorPlayer[] => {
-  return props.players.filter(p => p.id !== props.player.id)
-})
-
-const sortedOtherPlayers = computed(() => {
-  return [...otherPlayers.value].sort((a, b) => {
-    const localeResult = a.name.localeCompare(b.name, 'zh-CN-u-co-pinyin')
-    return localeResult || a.name.localeCompare(b.name)
-  })
-})
-
 const searchResultText = computed(() => {
   const result = props.player.last_search_result
   if (!result) {
@@ -647,14 +560,6 @@ const lifeAnimationClass = computed(() => {
     return ''
   }
   return lifeAnimation.value === 'damage' ? 'life-damage' : 'life-heal'
-})
-
-const deliverMessageTooLong = computed(() => {
-  return deliverMessage.value.length > MESSAGE_MAX_LENGTH
-})
-
-const directorMessageTooLong = computed(() => {
-  return directorMessage.value.length > MESSAGE_MAX_LENGTH
 })
 
 onMounted(() => {
@@ -762,27 +667,6 @@ const handlePick = () => {
     return
   }
   emit('action', 'pick', {})
-}
-
-const handleDeliver = () => {
-  const trimmedMessage = deliverMessage.value.trim()
-  if (!targetPlayer.value || !trimmedMessage || trimmedMessage.length > MESSAGE_MAX_LENGTH) {
-    return
-  }
-  emit('action', 'deliver', {
-    target_player_id: targetPlayer.value,
-    message: trimmedMessage
-  })
-  deliverMessage.value = ''
-}
-
-const handleSendToDirector = () => {
-  const trimmedMessage = directorMessage.value.trim()
-  if (!trimmedMessage || trimmedMessage.length > MESSAGE_MAX_LENGTH) {
-    return
-  }
-  emit('action', 'send', { message: trimmedMessage })
-  directorMessage.value = ''
 }
 
 function formatDuration(durationMs: number) {
@@ -973,7 +857,7 @@ function formatDuration(durationMs: number) {
   color: #303133;
 }
 
-.core-actions, .item-quick-actions, .communication-actions {
+.core-actions, .item-quick-actions {
   margin-bottom: 16px;
 }
 
@@ -1106,42 +990,6 @@ function formatDuration(durationMs: number) {
   align-items: center;
 }
 
-.comm-row {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  flex-wrap: wrap;
-}
-
-.deliver-group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: flex-start;
-}
-
-.comm-input-line {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.deliver-group .el-input {
-  flex: none;
-}
-
-.input-error {
-  color: #f56c6c;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-@media (min-width: 769px) {
-  .comm-row {
-    width: 100%;
-  }
-}
-
 /* 响应式设计 */
 @media (max-width: 768px) {
   .player-status-bar {
@@ -1216,7 +1064,7 @@ function formatDuration(durationMs: number) {
     justify-content: center;
   }
   
-  .quick-item-row, .comm-row {
+  .quick-item-row {
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: left;
@@ -1240,31 +1088,6 @@ function formatDuration(durationMs: number) {
 }
 
 @media (max-width: 600px) {
-  .deliver-group {
-    width: 100%;
-  }
-
-  .comm-input-line {
-    flex-direction: row;
-    flex-wrap: wrap;
-    width: 100%;
-    justify-content: left;
-  }
-
-  .deliver-group .el-select {
-    flex: 1 1 100%;
-    width: auto !important;
-  }
-
-  .comm-input-line .el-input {
-    flex: 1 1 140px;
-    width: auto !important;
-  }
-
-  .comm-input-line .el-button {
-    flex: 0 0 auto;
-  }
-
   .rest-status-chip.rest-mobile {
     flex: 0 0 auto;
   }
