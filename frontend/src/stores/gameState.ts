@@ -257,6 +257,21 @@ export const useGameStateStore = defineStore('gameState', () => {
     sendDirectorAction('coins', { player_id: playerId, coins: coins })
   }
 
+  // 设置玩家生命上限（绝对值）
+  const setPlayerMaxLife = (playerId: string, maxLife: number) => {
+    sendDirectorAction('max_life', { player_id: playerId, max_life: maxLife })
+  }
+
+  // 设置玩家体力上限（绝对值）
+  const setPlayerMaxStrength = (playerId: string, maxStrength: number) => {
+    sendDirectorAction('max_strength', { player_id: playerId, max_strength: maxStrength })
+  }
+
+  // 设置玩家背包上限（绝对值）
+  const setPlayerMaxBackpack = (playerId: string, maxBackpackItems: number) => {
+    sendDirectorAction('max_backpack', { player_id: playerId, max_backpack_items: maxBackpackItems })
+  }
+
   // 移动玩家到指定地点
   const movePlayer = (playerId: string, targetPlace: string) => {
     sendDirectorAction('move_player', { player_id: playerId, target_place: targetPlace })
@@ -465,6 +480,9 @@ export const useGameStateStore = defineStore('gameState', () => {
     setPlayerLife,
     setPlayerStrength,
     setPlayerCoins,
+    setPlayerMaxLife,
+    setPlayerMaxStrength,
+    setPlayerMaxBackpack,
     movePlayer,
     togglePlayerBinding,
     destroyPlace,
